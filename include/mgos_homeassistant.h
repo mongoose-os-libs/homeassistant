@@ -43,7 +43,7 @@ typedef void (*ha_status_cb)(struct mgos_homeassistant_object *n,
 typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *n,
                           const char *payload, const int payload_len);
 
-struct mgos_homeassistant *mgos_homeassistant_create(void);
+struct mgos_homeassistant *mgos_homeassistant_create(const char *node_name);
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
                                  const char *filename);
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,

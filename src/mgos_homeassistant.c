@@ -16,8 +16,34 @@
 
 #include "mgos_homeassistant_internal.h"
 
-struct mgos_homeassistant *mgos_homeassistant_create(void) {
-  return NULL;
+static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
+                                       void *ev_data, void *user_data) {
+  switch (ev) {
+    case MG_EV_MQTT_CONNACK: {
+      char topic[100];
+      snprintf(topic, sizeof(topic), "%s/stat",
+               mgos_sys_config_get_device_id());
+      mgos_mqtt_pub((char *) topic, "online", 6, 0, true);
+      mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
+      break;
+    }
+  }
+  (void) nc;
+  (void) ev_data;
+}
+
+struct mgos_homeassistant *mgos_homeassistant_create(const char *node_name) {
+  struct mgos_homeassistant *ha = calloc(1, sizeof(*ha));
+  if (!ha) return NULL;
+
+  if (node_name)
+    ha->node_name = strdup(node_name);
+  else
+    ha->node_name = strdup(mgos_sys_config_get_device_id());
+  SLIST_INIT(&ha->objects);
+
+  mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, ha);
+  return ha;
 }
 
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,

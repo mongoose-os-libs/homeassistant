@@ -26,7 +26,7 @@ struct mgos_homeassistant_object;
 struct mgos_homeassistant_object_class;
 
 struct mgos_homeassistant {
-  char *name;
+  char *node_name;
   SLIST_HEAD(objects, mgos_homeassistant_object) objects;
 };
 
