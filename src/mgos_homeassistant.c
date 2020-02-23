@@ -59,6 +59,7 @@ struct mgos_homeassistant *mgos_homeassistant_create(const char *node_name) {
   SLIST_INIT(&ha->objects);
 
   mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, ha);
+  LOG(LL_DEBUG, ("Created node '%s'", ha->node_name));
   return ha;
 }
 
@@ -123,6 +124,8 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
   SLIST_INIT(&o->classes);
   SLIST_INSERT_HEAD(&ha->objects, o, entry);
 
+  LOG(LL_DEBUG,
+      ("Created object '%s' on node '%s'", o->object_name, o->ha->node_name));
   return o;
 }
 
@@ -186,6 +189,9 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
     c->json_config_additional_payload = strdup(json_config_additional_payload);
   c->status = status;
   SLIST_INSERT_HEAD(&o->classes, c, entry);
+
+  LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name,
+                 c->object->object_name));
   return c;
 }
 
