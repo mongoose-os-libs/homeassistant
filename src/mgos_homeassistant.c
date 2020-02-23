@@ -94,7 +94,6 @@ bool mgos_homeassistant_destroy(struct mgos_homeassistant **ha) {
   while (!SLIST_EMPTY(&(*ha)->objects)) {
     struct mgos_homeassistant_object *o;
     o = SLIST_FIRST(&(*ha)->objects);
-    SLIST_REMOVE_HEAD(&(*ha)->objects, entry);
     mgos_homeassistant_object_remove(&o);
   }
   free(*ha);
@@ -150,25 +149,53 @@ bool mgos_homeassistant_object_send_config(
 }
 
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
-  return false;
-  (void) o;
+  if (!(*o) || !(*o)->ha) return false;
+
+  SLIST_REMOVE(&(*o)->ha->objects, (*o), mgos_homeassistant_object, entry);
+
+  if ((*o)->object_name) free((*o)->object_name);
+  if ((*o)->json_config_additional_payload)
+    free((*o)->json_config_additional_payload);
+
+  while (!SLIST_EMPTY(&(*o)->classes)) {
+    struct mgos_homeassistant_object_class *c;
+    c = SLIST_FIRST(&(*o)->classes);
+    mgos_homeassistant_object_class_remove(&c);
+  }
+
+  free(*o);
+  *o = NULL;
+  return true;
 }
 
-bool mgos_homeassistant_object_class_add(
+struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
     struct mgos_homeassistant_object *o, const char *class_name,
-    const char *json_config_additional_payload, ha_status_cb cb) {
-  return false;
-  (void) o;
-  (void) class_name;
-  (void) json_config_additional_payload;
-  (void) cb;
+    const char *json_config_additional_payload, ha_status_cb status) {
+  struct mgos_homeassistant_object_class *c = calloc(1, sizeof(*c));
+
+  if (!c || !o || !class_name) return NULL;
+  c->object = o;
+  c->class_name = strdup(class_name);
+  if (json_config_additional_payload)
+    c->json_config_additional_payload = strdup(json_config_additional_payload);
+  c->status = status;
+  SLIST_INSERT_HEAD(&o->classes, c, entry);
+  return c;
 }
 
-bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object *o,
-                                            const char *class_name) {
-  return false;
-  (void) o;
-  (void) class_name;
+bool mgos_homeassistant_object_class_remove(
+    struct mgos_homeassistant_object_class **c) {
+  if (!(*c) || !(*c)->object) return false;
+
+  SLIST_REMOVE(&(*c)->object->classes, (*c), mgos_homeassistant_object_class,
+               entry);
+
+  if ((*c)->class_name) free((*c)->class_name);
+  if ((*c)->json_config_additional_payload)
+    free((*c)->json_config_additional_payload);
+  free(*c);
+  *c = NULL;
+  return true;
 }
 
 bool mgos_homeassistant_init(void) {

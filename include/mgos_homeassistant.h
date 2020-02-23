@@ -22,6 +22,7 @@
 
 struct mgos_homeassistant;
 struct mgos_homeassistant_object;
+struct mgos_homeassistant_object_class;
 
 enum mgos_homeassistant_component {
   COMPONENT_NONE = 0,
@@ -65,8 +66,8 @@ bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o);
 
-bool mgos_homeassistant_object_class_add(
+struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
     struct mgos_homeassistant_object *o, const char *class_name,
     const char *json_config_additional_payload, ha_status_cb cb);
-bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object *o,
-                                            const char *class_name);
+bool mgos_homeassistant_object_class_remove(
+    struct mgos_homeassistant_object_class **c);
