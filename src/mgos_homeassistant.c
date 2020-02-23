@@ -108,14 +108,20 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     enum mgos_homeassistant_component ha_component,
     const char *json_config_additional_payload, ha_status_cb status,
     ha_cmd_cb cmd, void *user_data) {
-  return NULL;
-  (void) ha;
-  (void) object_name;
-  (void) ha_component;
-  (void) json_config_additional_payload;
-  (void) status;
-  (void) cmd;
-  (void) user_data;
+  struct mgos_homeassistant_object *o = calloc(1, sizeof(*o));
+
+  if (!o || !ha || !object_name) return NULL;
+  o->ha = ha;
+  o->component = ha_component;
+  o->object_name = strdup(object_name);
+  if (json_config_additional_payload)
+    o->json_config_additional_payload = strdup(json_config_additional_payload);
+  o->user_data = user_data;
+  o->status = status;
+  o->cmd = cmd;
+  SLIST_INSERT_HEAD(&ha->objects, o, entry);
+
+  return o;
 }
 
 struct mgos_homeassistant_object *mgos_homeassistant_object_search(
