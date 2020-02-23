@@ -16,6 +16,22 @@
 
 #include "mgos_homeassistant_internal.h"
 
+static void mgos_homeassistant_mqtt_connect(
+    struct mg_connection *nc, const char *client_id,
+    struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
+  char topic[100];
+  char payload[100];
+  snprintf(topic, sizeof(topic), "%s/stat", mgos_sys_config_get_device_id());
+  snprintf(payload, sizeof(payload), "offline");
+  LOG(LL_INFO, ("Setting will topic='%s' payload='%s', for when we disconnect",
+                topic, payload));
+  opts->will_topic = strdup(topic);
+  opts->will_message = strdup(payload);
+  opts->flags |= MG_MQTT_WILL_RETAIN;
+  mg_send_mqtt_handshake_opt(nc, client_id, *opts);
+  (void) fn_arg;
+}
+
 static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
                                        void *ev_data, void *user_data) {
   switch (ev) {
@@ -71,8 +87,20 @@ bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha) {
 }
 
 bool mgos_homeassistant_destroy(struct mgos_homeassistant **ha) {
-  return false;
-  (void) ha;
+  if (!(*ha)) return false;
+
+  if ((*ha)->node_name) free((*ha)->node_name);
+
+  while (!SLIST_EMPTY(&(*ha)->objects)) {
+    struct mgos_homeassistant_object *o;
+    o = SLIST_FIRST(&(*ha)->objects);
+    SLIST_REMOVE_HEAD(&(*ha)->objects, entry);
+    mgos_homeassistant_object_remove(&o);
+  }
+  free(*ha);
+  *ha = NULL;
+
+  return true;
 }
 
 struct mgos_homeassistant_object *mgos_homeassistant_object_add(
@@ -115,7 +143,7 @@ bool mgos_homeassistant_object_send_config(
   (void) o;
 }
 
-bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object *o) {
+bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   return false;
   (void) o;
 }
@@ -135,22 +163,6 @@ bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object *o,
   return false;
   (void) o;
   (void) class_name;
-}
-
-static void mgos_homeassistant_mqtt_connect(
-    struct mg_connection *nc, const char *client_id,
-    struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
-  char topic[100];
-  char payload[100];
-  snprintf(topic, sizeof(topic), "%s/stat", mgos_sys_config_get_device_id());
-  snprintf(payload, sizeof(payload), "offline");
-  LOG(LL_INFO, ("Setting will topic='%s' payload='%s', for when we disconnect",
-                topic, payload));
-  opts->will_topic = strdup(topic);
-  opts->will_message = strdup(payload);
-  opts->flags |= MG_MQTT_WILL_RETAIN;
-  mg_send_mqtt_handshake_opt(nc, client_id, *opts);
-  (void) fn_arg;
 }
 
 bool mgos_homeassistant_init(void) {
