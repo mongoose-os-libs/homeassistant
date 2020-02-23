@@ -89,13 +89,15 @@ bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha) {
 bool mgos_homeassistant_destroy(struct mgos_homeassistant **ha) {
   if (!(*ha)) return false;
 
-  if ((*ha)->node_name) free((*ha)->node_name);
+  LOG(LL_DEBUG, ("Destroying node '%s'", (*ha)->node_name));
 
   while (!SLIST_EMPTY(&(*ha)->objects)) {
     struct mgos_homeassistant_object *o;
     o = SLIST_FIRST(&(*ha)->objects);
     mgos_homeassistant_object_remove(&o);
   }
+  if ((*ha)->node_name) free((*ha)->node_name);
+
   free(*ha);
   *ha = NULL;
 
@@ -118,6 +120,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
   o->user_data = user_data;
   o->status = status;
   o->cmd = cmd;
+  SLIST_INIT(&o->classes);
   SLIST_INSERT_HEAD(&ha->objects, o, entry);
 
   return o;
@@ -151,17 +154,20 @@ bool mgos_homeassistant_object_send_config(
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   if (!(*o) || !(*o)->ha) return false;
 
-  SLIST_REMOVE(&(*o)->ha->objects, (*o), mgos_homeassistant_object, entry);
-
-  if ((*o)->object_name) free((*o)->object_name);
-  if ((*o)->json_config_additional_payload)
-    free((*o)->json_config_additional_payload);
+  LOG(LL_DEBUG, ("Removing object '%s' from node '%s'", (*o)->object_name,
+                 (*o)->ha->node_name));
 
   while (!SLIST_EMPTY(&(*o)->classes)) {
     struct mgos_homeassistant_object_class *c;
     c = SLIST_FIRST(&(*o)->classes);
     mgos_homeassistant_object_class_remove(&c);
   }
+
+  if ((*o)->object_name) free((*o)->object_name);
+  if ((*o)->json_config_additional_payload)
+    free((*o)->json_config_additional_payload);
+
+  SLIST_REMOVE(&(*o)->ha->objects, (*o), mgos_homeassistant_object, entry);
 
   free(*o);
   *o = NULL;
@@ -187,12 +193,16 @@ bool mgos_homeassistant_object_class_remove(
     struct mgos_homeassistant_object_class **c) {
   if (!(*c) || !(*c)->object) return false;
 
-  SLIST_REMOVE(&(*c)->object->classes, (*c), mgos_homeassistant_object_class,
-               entry);
+  LOG(LL_DEBUG, ("Removing class '%s' from object '%s'", (*c)->class_name,
+                 (*c)->object->object_name));
 
   if ((*c)->class_name) free((*c)->class_name);
   if ((*c)->json_config_additional_payload)
     free((*c)->json_config_additional_payload);
+
+  SLIST_REMOVE(&(*c)->object->classes, (*c), mgos_homeassistant_object_class,
+               entry);
+
   free(*c);
   *c = NULL;
   return true;
