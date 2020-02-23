@@ -1,0 +1,27 @@
+author: Pim van Pelt <pim@ipng.nl>
+description: Library that implements Home Assistant autodiscovery
+type: lib
+version: 1.0
+
+tags:
+  - c
+
+# List of files / directories with C sources. No slashes at the end of dir names.
+sources:
+  - src
+
+includes:
+  - include
+
+config_schema:
+  - ["homeassistant", "o", {title: "Home Assistant settings"}]
+  - ["homeassistant.enable", "b", false, {title: "Enable MQTT reporting to Home Assistant"}]
+  - ["homeassistant.config", "s", "ha.conf", {title: "Home Assistant config file"}]
+  - ["homeassistant.discovery_prefix", "s", "ha", {title: "MQTT prefix to use for topics"}]
+
+
+libs:
+  - origin: https://github.com/mongoose-os-libs/mqtt
+
+# Used by the mos tool to catch mos binaries incompatible with this file format
+manifest_version: 2017-05-18
