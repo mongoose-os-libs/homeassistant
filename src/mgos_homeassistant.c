@@ -16,6 +16,42 @@
 
 #include "mgos_homeassistant_internal.h"
 
+static bool mgos_homeassistant_isvalid_name(const char *s) {
+  if (!s) return false;
+  if (strlen(s) > 20) return false;
+
+  if (!isalnum((int) s[0])) return false;
+
+  for (size_t i = 1; i < strlen(s); i++)
+    if (!(isalnum((int) s[i]) || s[i] == '_')) return false;
+
+  return true;
+}
+
+static bool mgos_homeassistant_exists_objectname(struct mgos_homeassistant *ha,
+                                                 const char *s) {
+  struct mgos_homeassistant_object *o;
+  if (!ha || !s) return false;
+
+  SLIST_FOREACH(o, &ha->objects, entry) {
+    if (0 == strcasecmp(s, o->object_name)) return true;
+  }
+
+  return false;
+}
+
+static bool mgos_homeassistant_exists_classname(
+    struct mgos_homeassistant_object *o, const char *s) {
+  struct mgos_homeassistant_object_class *c;
+  if (!o || !s) return false;
+
+  SLIST_FOREACH(c, &o->classes, entry) {
+    if (0 == strcasecmp(s, c->class_name)) return true;
+  }
+
+  return false;
+}
+
 static void mgos_homeassistant_mqtt_connect(
     struct mg_connection *nc, const char *client_id,
     struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
@@ -52,10 +88,22 @@ struct mgos_homeassistant *mgos_homeassistant_create(const char *node_name) {
   struct mgos_homeassistant *ha = calloc(1, sizeof(*ha));
   if (!ha) return NULL;
 
-  if (node_name)
+  if (node_name) {
+    if (!mgos_homeassistant_isvalid_name(node_name)) {
+      LOG(LL_ERROR, ("Invalid node name '%s'", node_name));
+      free(ha);
+      return NULL;
+    }
     ha->node_name = strdup(node_name);
-  else
+  } else {
+    if (!mgos_homeassistant_isvalid_name(mgos_sys_config_get_device_id())) {
+      LOG(LL_ERROR, ("Invalid node name '%s' (from device.id)",
+                     mgos_sys_config_get_device_id()));
+      free(ha);
+      return NULL;
+    }
     ha->node_name = strdup(mgos_sys_config_get_device_id());
+  }
   SLIST_INIT(&ha->objects);
 
   mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, ha);
@@ -113,6 +161,18 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
   struct mgos_homeassistant_object *o = calloc(1, sizeof(*o));
 
   if (!o || !ha || !object_name) return NULL;
+  if (!mgos_homeassistant_isvalid_name(object_name)) {
+    LOG(LL_ERROR, ("Invalid object name '%s'", object_name));
+    free(o);
+    return NULL;
+  }
+  if (mgos_homeassistant_exists_objectname(ha, object_name)) {
+    LOG(LL_ERROR, ("Object name '%s' already exists in node '%s'", object_name,
+                   ha->node_name));
+    free(o);
+    return NULL;
+  }
+
   o->ha = ha;
   o->component = ha_component;
   o->object_name = strdup(object_name);
@@ -183,6 +243,18 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
   struct mgos_homeassistant_object_class *c = calloc(1, sizeof(*c));
 
   if (!c || !o || !class_name) return NULL;
+  if (!mgos_homeassistant_isvalid_name(class_name)) {
+    LOG(LL_ERROR, ("Invalid class name '%s'", class_name));
+    free(c);
+    return NULL;
+  }
+  if (mgos_homeassistant_exists_classname(o, class_name)) {
+    LOG(LL_ERROR, ("Class name '%s' already exists in object '%s'", class_name,
+                   o->object_name));
+    free(c);
+    return NULL;
+  }
+
   c->object = o;
   c->class_name = strdup(class_name);
   if (json_config_additional_payload)
