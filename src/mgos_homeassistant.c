@@ -166,8 +166,12 @@ bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
 }
 
 bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha) {
-  return false;
-  (void) ha;
+  struct mgos_homeassistant_object *o;
+  if (!ha) return false;
+  SLIST_FOREACH(o, &ha->objects, entry) {
+    mgos_homeassistant_object_send_status(o);
+  }
+  return true;
 }
 
 bool mgos_homeassistant_clear(struct mgos_homeassistant *ha) {
@@ -235,9 +239,44 @@ void *mgos_homeassistant_object_get_userdata(
 
 bool mgos_homeassistant_object_send_status(
     struct mgos_homeassistant_object *o) {
-  if (!o) return false;
+  struct mgos_homeassistant_object_class *c = NULL;
+  struct mbuf mbuf_topic;
+  struct mbuf mbuf_payload;
+  struct json_out payload = JSON_OUT_MBUF(&mbuf_payload);
+  bool ret = false;
+  int i;
 
-  return false;
+  if (!o) goto exit;
+
+  mbuf_init(&mbuf_topic, 100);
+
+  mbuf_init(&mbuf_payload, 100);
+  json_printf(&payload, "{");
+  o->status(o, &payload);
+
+  i = 0;
+  SLIST_FOREACH(c, &o->classes, entry) {
+    if (i > 0) json_printf(&payload, ",");
+    json_printf(&payload, "%Q:", c->class_name);
+    if (!c->status) {
+      json_printf(&payload, "%Q", NULL);
+    } else {
+      size_t len = mbuf_payload.len;
+      c->status(o, &payload);
+      if (mbuf_payload.len == len) json_printf(&payload, "%Q", NULL);
+    }
+    i++;
+  }
+  json_printf(&payload, "}");
+
+  LOG(LL_INFO, ("topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
+                mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+
+  ret = true;
+exit:
+  mbuf_free(&mbuf_payload);
+  mbuf_free(&mbuf_topic);
+  return ret;
 }
 
 static char *gen_configtopic(struct mbuf *m,

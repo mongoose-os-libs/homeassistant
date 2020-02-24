@@ -39,7 +39,7 @@ enum mgos_homeassistant_component {
   COMPONENT_VACUUM
 };
 
-typedef void (*ha_status_cb)(struct mgos_homeassistant_object *n,
+typedef void (*ha_status_cb)(struct mgos_homeassistant_object *o,
                              struct json_out *json);
 typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *n,
                           const char *payload, const int payload_len);
