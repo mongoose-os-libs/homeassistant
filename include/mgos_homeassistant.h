@@ -69,5 +69,9 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o);
 struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
     struct mgos_homeassistant_object *o, const char *class_name,
     const char *json_config_additional_payload, ha_status_cb cb);
+bool mgos_homeassistant_object_class_send_status(
+    struct mgos_homeassistant_object_class *c);
+bool mgos_homeassistant_object_class_send_config(
+    struct mgos_homeassistant_object_class *c);
 bool mgos_homeassistant_object_class_remove(
     struct mgos_homeassistant_object_class **c);

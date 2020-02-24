@@ -367,9 +367,14 @@ static bool mgos_homeassistant_object_send_config_mqtt(
               "/stat");
   if (o->status) json_printf(&payload, ",stat_t:%Q", "/stat");
   if (o->cmd) json_printf(&payload, ",cmd_t:%Q", "/cmd");
-  if (c)
+  if (c) {
     json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"",
                 c->class_name, "value_json.", c->class_name);
+    if (c->json_config_additional_payload)
+      json_printf(&payload, ",%s", c->json_config_additional_payload);
+  }
+  if (o->json_config_additional_payload)
+    json_printf(&payload, ",%s", o->json_config_additional_payload);
 
   json_printf(&payload, ",device:{");
   json_printf(&payload, "name:%Q", mgos_sys_config_get_device_id());
@@ -479,6 +484,18 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
   LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name,
                  c->object->object_name));
   return c;
+}
+
+bool mgos_homeassistant_object_class_send_config(
+    struct mgos_homeassistant_object_class *c) {
+  if (!c) return false;
+  return mgos_homeassistant_object_send_config(c->object);
+}
+
+bool mgos_homeassistant_object_class_send_status(
+    struct mgos_homeassistant_object_class *c) {
+  if (!c) return false;
+  return mgos_homeassistant_object_send_status(c->object);
 }
 
 bool mgos_homeassistant_object_class_remove(
