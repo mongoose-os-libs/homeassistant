@@ -20,6 +20,8 @@
 extern const char *mg_build_id;
 extern const char *mg_build_version;
 
+static struct mgos_homeassistant *s_homeassistant = NULL;
+
 static const char *ha_component_str(
     enum mgos_homeassistant_component ha_component) {
   switch (ha_component) {
@@ -122,39 +124,14 @@ static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
       snprintf(topic, sizeof(topic), "%s/stat",
                mgos_sys_config_get_device_id());
       mgos_mqtt_pub((char *) topic, "online", 6, 0, true);
-      mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
+      if (user_data)
+        mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
       break;
     }
   }
   (void) nc;
   (void) ev_data;
-}
-
-struct mgos_homeassistant *mgos_homeassistant_create(const char *node_name) {
-  struct mgos_homeassistant *ha = calloc(1, sizeof(*ha));
-  if (!ha) return NULL;
-
-  if (node_name) {
-    if (!mgos_homeassistant_isvalid_name(node_name)) {
-      LOG(LL_ERROR, ("Invalid node name '%s'", node_name));
-      free(ha);
-      return NULL;
-    }
-    ha->node_name = strdup(node_name);
-  } else {
-    if (!mgos_homeassistant_isvalid_name(mgos_sys_config_get_device_id())) {
-      LOG(LL_ERROR, ("Invalid node name '%s' (from device.id)",
-                     mgos_sys_config_get_device_id()));
-      free(ha);
-      return NULL;
-    }
-    ha->node_name = strdup(mgos_sys_config_get_device_id());
-  }
-  SLIST_INIT(&ha->objects);
-
-  mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, ha);
-  LOG(LL_DEBUG, ("Created node '%s'", ha->node_name));
-  return ha;
+  (void) user_data;
 }
 
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
@@ -176,6 +153,8 @@ bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
   if (!ha) return false;
   int done = 0, success = 0;
 
+  if (!ha) return false;
+
   SLIST_FOREACH(o, &ha->objects, entry) {
     done++;
     if (mgos_homeassistant_object_send_config(o)) success++;
@@ -191,20 +170,16 @@ bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha) {
   (void) ha;
 }
 
-bool mgos_homeassistant_destroy(struct mgos_homeassistant **ha) {
-  if (!(*ha)) return false;
+bool mgos_homeassistant_clear(struct mgos_homeassistant *ha) {
+  if (!ha) return false;
 
-  LOG(LL_DEBUG, ("Destroying node '%s'", (*ha)->node_name));
+  LOG(LL_DEBUG, ("Clearing node '%s'", ha->node_name));
 
-  while (!SLIST_EMPTY(&(*ha)->objects)) {
+  while (!SLIST_EMPTY(&ha->objects)) {
     struct mgos_homeassistant_object *o;
-    o = SLIST_FIRST(&(*ha)->objects);
+    o = SLIST_FIRST(&ha->objects);
     mgos_homeassistant_object_remove(&o);
   }
-  if ((*ha)->node_name) free((*ha)->node_name);
-
-  free(*ha);
-  *ha = NULL;
 
   return true;
 }
@@ -477,7 +452,20 @@ bool mgos_homeassistant_object_class_remove(
   return true;
 }
 
+struct mgos_homeassistant *mgos_homeassistant_get_global() {
+  return s_homeassistant;
+}
+
 bool mgos_homeassistant_init(void) {
+  s_homeassistant = calloc(1, sizeof(struct mgos_homeassistant));
+  if (!s_homeassistant) return false;
+
+  s_homeassistant->node_name = strdup(mgos_sys_config_get_device_id());
+  SLIST_INIT(&s_homeassistant->objects);
+
+  mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, s_homeassistant);
   mgos_mqtt_set_connect_fn(mgos_homeassistant_mqtt_connect, NULL);
+  LOG(LL_DEBUG,
+      ("Created homeassistant node '%s'", s_homeassistant->node_name));
   return true;
 }

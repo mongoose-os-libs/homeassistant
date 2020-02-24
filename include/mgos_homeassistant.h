@@ -44,14 +44,14 @@ typedef void (*ha_status_cb)(struct mgos_homeassistant_object *n,
 typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *n,
                           const char *payload, const int payload_len);
 
-struct mgos_homeassistant *mgos_homeassistant_create(const char *node_name);
+struct mgos_homeassistant *mgos_homeassistant_get_global(void);
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
                                  const char *filename);
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
                                  const char *json);
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha);
-bool mgos_homeassistant_destroy(struct mgos_homeassistant **ha);
+bool mgos_homeassistant_clear(struct mgos_homeassistant *ha);
 
 struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     struct mgos_homeassistant *ha, const char *object_name,
