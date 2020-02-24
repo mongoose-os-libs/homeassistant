@@ -124,8 +124,10 @@ static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
       snprintf(topic, sizeof(topic), "%s/stat",
                mgos_sys_config_get_device_id());
       mgos_mqtt_pub((char *) topic, "online", 6, 0, true);
-      if (user_data)
+      if (user_data) {
         mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
+        mgos_homeassistant_send_status((struct mgos_homeassistant *) user_data);
+      }
       break;
     }
   }
@@ -151,7 +153,7 @@ static char *gen_configtopic(struct mbuf *m,
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
   mbuf_append(m, "/config", 7);
-  mbuf_append(m, NULL, 1);
+  m->buf[m->len] = 0;
   return m->buf;
 }
 
@@ -297,6 +299,7 @@ bool mgos_homeassistant_object_send_status(
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
   mbuf_append(&mbuf_topic, "/stat", 5);
+  mbuf_topic.buf[mbuf_topic.len] = 0;
 
   mbuf_init(&mbuf_payload, 100);
   json_printf(&payload, "{");
@@ -321,8 +324,10 @@ bool mgos_homeassistant_object_send_status(
   }
   json_printf(&payload, "}");
 
-  LOG(LL_INFO, ("topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
-                mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+  LOG(LL_DEBUG, ("Status topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
+                 mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+  mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0,
+                false);
 
   ret = true;
 exit:
@@ -381,8 +386,10 @@ static bool mgos_homeassistant_object_send_config_mqtt(
 
   json_printf(&payload, "}");
 
-  LOG(LL_INFO, ("topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
-                mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+  LOG(LL_DEBUG, ("Config: topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
+                 mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+  mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0,
+                true);
 
   ret = true;
 exit:
