@@ -245,6 +245,7 @@ bool mgos_homeassistant_object_send_status(
   struct json_out payload = JSON_OUT_MBUF(&mbuf_payload);
   bool ret = false;
   int i;
+  size_t len;
 
   if (!o) goto exit;
 
@@ -252,16 +253,20 @@ bool mgos_homeassistant_object_send_status(
 
   mbuf_init(&mbuf_payload, 100);
   json_printf(&payload, "{");
+  len = mbuf_payload.len;
   o->status(o, &payload);
 
   i = 0;
   SLIST_FOREACH(c, &o->classes, entry) {
-    if (i > 0) json_printf(&payload, ",");
+    if (i == 0 && len != mbuf_payload.len)
+      json_printf(&payload, ",");
+    else if (i > 0)
+      json_printf(&payload, ",");
     json_printf(&payload, "%Q:", c->class_name);
     if (!c->status) {
       json_printf(&payload, "%Q", NULL);
     } else {
-      size_t len = mbuf_payload.len;
+      len = mbuf_payload.len;
       c->status(o, &payload);
       if (mbuf_payload.len == len) json_printf(&payload, "%Q", NULL);
     }
