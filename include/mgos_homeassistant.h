@@ -18,7 +18,7 @@
 
 #include <stdbool.h>
 
-#include "common/mbuf.h"
+#include "frozen.h"
 
 struct mgos_homeassistant;
 struct mgos_homeassistant_object;
@@ -40,7 +40,7 @@ enum mgos_homeassistant_component {
 };
 
 typedef void (*ha_status_cb)(struct mgos_homeassistant_object *n,
-                             struct mbuf *json);
+                             struct json_out *json);
 typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *n,
                           const char *payload, const int payload_len);
 
