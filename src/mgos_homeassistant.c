@@ -183,16 +183,14 @@ static char *gen_friendlyname(struct mbuf *m,
 
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
                                  const char *filename) {
-  return false;
-  (void) ha;
-  (void) filename;
+  return mgos_homeassistant_fromjson(ha, json_fread(filename));
 }
 
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
                                  const char *json) {
+  if (!ha || !json) return false;
+
   return false;
-  (void) ha;
-  (void) json;
 }
 
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
