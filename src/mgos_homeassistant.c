@@ -134,6 +134,51 @@ static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
   (void) user_data;
 }
 
+static char *gen_configtopic(struct mbuf *m,
+                             const struct mgos_homeassistant_object *o,
+                             const struct mgos_homeassistant_object_class *c) {
+  mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(),
+              strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, ha_component_str(o->component),
+              strlen(ha_component_str(o->component)));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, o->object_name, strlen(o->object_name));
+  if (c) {
+    mbuf_append(m, "_", 1);
+    mbuf_append(m, c->class_name, strlen(c->class_name));
+  }
+  mbuf_append(m, "/config", 7);
+  mbuf_append(m, NULL, 1);
+  return m->buf;
+}
+
+static char *gen_topicprefix(struct mbuf *m,
+                             const struct mgos_homeassistant_object *o) {
+  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, ha_component_str(o->component),
+              strlen(ha_component_str(o->component)));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, o->object_name, strlen(o->object_name));
+  return m->buf;
+}
+
+static char *gen_friendlyname(struct mbuf *m,
+                              const struct mgos_homeassistant_object *o,
+                              const struct mgos_homeassistant_object_class *c) {
+  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
+  mbuf_append(m, "_", 1);
+  mbuf_append(m, o->object_name, strlen(o->object_name));
+  if (c) {
+    mbuf_append(m, "_", 1);
+    mbuf_append(m, c->class_name, strlen(c->class_name));
+  }
+  return m->buf;
+}
+
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
                                  const char *filename) {
   return false;
@@ -250,6 +295,8 @@ bool mgos_homeassistant_object_send_status(
   if (!o) goto exit;
 
   mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+  mbuf_append(&mbuf_topic, "/stat", 5);
 
   mbuf_init(&mbuf_payload, 100);
   json_printf(&payload, "{");
@@ -284,56 +331,6 @@ exit:
   return ret;
 }
 
-static char *gen_configtopic(struct mbuf *m,
-                             const struct mgos_homeassistant_object *o,
-                             const struct mgos_homeassistant_object_class *c) {
-  mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(),
-              strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, ha_component_str(o->component),
-              strlen(ha_component_str(o->component)));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, o->object_name, strlen(o->object_name));
-  if (c) {
-    mbuf_append(m, "_", 1);
-    mbuf_append(m, c->class_name, strlen(c->class_name));
-  }
-  mbuf_append(m, "/config", 7);
-  mbuf_append(m, NULL, 1);
-  return m->buf;
-}
-
-static char *gen_topicprefix(struct mbuf *m,
-                             const struct mgos_homeassistant_object *o,
-                             const struct mgos_homeassistant_object_class *c) {
-  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, ha_component_str(o->component),
-              strlen(ha_component_str(o->component)));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, o->object_name, strlen(o->object_name));
-  if (c) {
-    mbuf_append(m, "_", 1);
-    mbuf_append(m, c->class_name, strlen(c->class_name));
-  }
-  return m->buf;
-}
-
-static char *gen_friendlyname(struct mbuf *m,
-                              const struct mgos_homeassistant_object *o,
-                              const struct mgos_homeassistant_object_class *c) {
-  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
-  mbuf_append(m, "_", 1);
-  mbuf_append(m, o->object_name, strlen(o->object_name));
-  if (c) {
-    mbuf_append(m, "_", 1);
-    mbuf_append(m, c->class_name, strlen(c->class_name));
-  }
-  return m->buf;
-}
-
 static bool mgos_homeassistant_object_send_config_mqtt(
     struct mgos_homeassistant *ha, struct mgos_homeassistant_object *o,
     struct mgos_homeassistant_object_class *c) {
@@ -352,7 +349,7 @@ static bool mgos_homeassistant_object_send_config_mqtt(
   if (!ha || !o) goto exit;
 
   gen_configtopic(&mbuf_topic, o, c);
-  gen_topicprefix(&mbuf_topicprefix, o, c);
+  gen_topicprefix(&mbuf_topicprefix, o);
   gen_friendlyname(&mbuf_friendlyname, o, c);
 
   json_printf(&payload, "{\"~\":%.*Q,name:%.*Q", (int) mbuf_topicprefix.len,
