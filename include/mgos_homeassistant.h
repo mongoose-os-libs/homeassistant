@@ -16,66 +16,10 @@
 
 #pragma once
 
-#include <stdbool.h>
-
-#include "frozen.h"
-
-struct mgos_homeassistant;
-struct mgos_homeassistant_object;
-struct mgos_homeassistant_object_class;
-
-enum mgos_homeassistant_component {
-  COMPONENT_NONE = 0,
-  COMPONENT_ALARM_CONTROL_PANEL,
-  COMPONENT_BINARY_SENSOR,
-  COMPONENT_CAMERA,
-  COMPONENT_CLIMATE,
-  COMPONENT_COVER,
-  COMPONENT_FAN,
-  COMPONENT_LIGHT,
-  COMPONENT_LOCK,
-  COMPONENT_SENSOR,
-  COMPONENT_SWITCH,
-  COMPONENT_VACUUM
-};
-
-typedef void (*ha_status_cb)(struct mgos_homeassistant_object *o,
-                             struct json_out *json);
-typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *o,
-                          const char *payload, const int payload_len);
-typedef void (*ha_attr_cb)(struct mgos_homeassistant_object *o,
-                           const char *payload, const int payload_len);
-
+#include "mgos_homeassistant_api.h"
 struct mgos_homeassistant *mgos_homeassistant_get_global(void);
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
                                  const char *filename);
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
                                  const char *json);
-bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha);
-bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_clear(struct mgos_homeassistant *ha);
-
-struct mgos_homeassistant_object *mgos_homeassistant_object_add(
-    struct mgos_homeassistant *ha, const char *object_name,
-    enum mgos_homeassistant_component ha_component,
-    const char *json_config_additional_payload, ha_status_cb status,
-    void *user_data);
-struct mgos_homeassistant_object *mgos_homeassistant_object_search(
-    struct mgos_homeassistant *ha, const char *query);
-void *mgos_homeassistant_object_get_userdata(
-    struct mgos_homeassistant_object *o);
-bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd);
-bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr);
-bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o);
-bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o);
-bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o);
-
-struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
-    struct mgos_homeassistant_object *o, const char *class_name,
-    const char *json_config_additional_payload, ha_status_cb cb);
-bool mgos_homeassistant_object_class_send_status(
-    struct mgos_homeassistant_object_class *c);
-bool mgos_homeassistant_object_class_send_config(
-    struct mgos_homeassistant_object_class *c);
-bool mgos_homeassistant_object_class_remove(
-    struct mgos_homeassistant_object_class **c);
