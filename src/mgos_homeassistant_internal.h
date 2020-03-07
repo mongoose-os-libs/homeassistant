@@ -40,6 +40,7 @@ struct mgos_homeassistant_object {
 
   ha_status_cb status;
   ha_cmd_cb cmd;
+  ha_attr_cb attr;
   void *user_data;
 
   SLIST_HEAD(classes, mgos_homeassistant_object_class) classes;

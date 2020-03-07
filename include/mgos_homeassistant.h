@@ -41,8 +41,10 @@ enum mgos_homeassistant_component {
 
 typedef void (*ha_status_cb)(struct mgos_homeassistant_object *o,
                              struct json_out *json);
-typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *n,
+typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *o,
                           const char *payload, const int payload_len);
+typedef void (*ha_attr_cb)(struct mgos_homeassistant_object *o,
+                           const char *payload, const int payload_len);
 
 struct mgos_homeassistant *mgos_homeassistant_get_global(void);
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
@@ -57,11 +59,13 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     struct mgos_homeassistant *ha, const char *object_name,
     enum mgos_homeassistant_component ha_component,
     const char *json_config_additional_payload, ha_status_cb status,
-    ha_cmd_cb cmd, void *user_data);
+    void *user_data);
 struct mgos_homeassistant_object *mgos_homeassistant_object_search(
     struct mgos_homeassistant *ha, const char *query);
 void *mgos_homeassistant_object_get_userdata(
     struct mgos_homeassistant_object *o);
+bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd);
+bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr);
 bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o);

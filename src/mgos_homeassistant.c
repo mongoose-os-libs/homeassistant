@@ -237,7 +237,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     struct mgos_homeassistant *ha, const char *object_name,
     enum mgos_homeassistant_component ha_component,
     const char *json_config_additional_payload, ha_status_cb status,
-    ha_cmd_cb cmd, void *user_data) {
+    void *user_data) {
   struct mgos_homeassistant_object *o = calloc(1, sizeof(*o));
 
   if (!o || !ha || !object_name) return NULL;
@@ -260,13 +260,26 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     o->json_config_additional_payload = strdup(json_config_additional_payload);
   o->user_data = user_data;
   o->status = status;
-  o->cmd = cmd;
   SLIST_INIT(&o->classes);
   SLIST_INSERT_HEAD(&ha->objects, o, entry);
 
   LOG(LL_DEBUG,
       ("Created object '%s' on node '%s'", o->object_name, o->ha->node_name));
   return o;
+}
+
+bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
+                                          ha_cmd_cb cmd) {
+  if (!o) return false;
+  o->cmd = cmd;
+  return true;
+}
+
+bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
+                                           ha_attr_cb attr) {
+  if (!o) return false;
+  o->attr = attr;
+  return true;
 }
 
 struct mgos_homeassistant_object *mgos_homeassistant_object_search(
@@ -365,6 +378,7 @@ static bool mgos_homeassistant_object_send_config_mqtt(
               "/stat");
   if (o->status) json_printf(&payload, ",stat_t:%Q", "/stat");
   if (o->cmd) json_printf(&payload, ",cmd_t:%Q", "/cmd");
+  if (o->attr) json_printf(&payload, ",attr_t:%Q", "/attr");
   if (c) {
     json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"",
                 c->class_name, "value_json.", c->class_name);
@@ -411,7 +425,7 @@ bool mgos_homeassistant_object_send_config(
 
   if (!o || !o->ha) goto exit;
 
-  if (o->status || o->cmd) {
+  if (o->status || o->cmd || o->attr) {
     done++;
     if (mgos_homeassistant_object_send_config_mqtt(o->ha, o, NULL)) success++;
   }
