@@ -14,9 +14,72 @@ configuration!
 
 ### Low Level API
 
+This API allows the creation of a _node_, adding _object_s to that node, and
+_class_es to the created objects. It then allows objects to send their _status_
+and receive _command_ and _attribute_ callbacks via MQTT.
+
+#### Node API
+
+Upon library initialization, a global _homeassistant_ object is created. It
+can be returned using ***`mgos_homeassistant_get_global()`***. After adding
+_object_s and optionally _class_es, (see below), _config_ and _status_ can
+be sent for all objects using ***`mgos_homeassistant_send_config()`*** and
+***`mgos_homeassistant_send_status()`*** respectively.
+
+To recursively remove all objects and their associated classes, call
+***`mgos_homeassistant_clear()`***. A higher level configuration based
+construction of objects and classes is described below.
+
+#### Object API
+
+*   ***`mgos_homeassistant_object_add()`*** creates a new _object_ with the
+    given `object_name` and of type `ha_component`. If additional JSON
+    configuration payload is needed, it can be passed or NULL passed. A
+    callback for _status_ calls is provided, and optionally a _userdata_
+    pointer is passed.
+*   ***`mgos_homeassistant_object_search()`*** searches the structure for an
+    object with the given name. It returns a pointer to the object or NULL
+    if none are found.
+*   ***`mgos_homeassistant_object_get_userdata()`*** returns the provided
+    _userdata_ struct upon creation.
+*   ***`mgos_homeassistant_object_set_cmd_cb()`*** sets the callback function
+    for _command_ MQTT requests.
+*   ***`mgos_homeassistant_object_set_attr_cb()`*** sets the callback function
+    for _attribute_ MQTT requests.
+*   ***`mgos_homeassistant_object_send_status()`*** sends an MQTT update with
+    the _status_ of the object. The status itself is provided by the callback
+    given at object creation time.
+*   ***`mgos_homeassistant_object_send_config()`*** sends a MQTT update with
+    the configuration of the object (and its children, see below).
+*   ***`mgos_homeassistant_object_remove()`*** removes the object (and its
+    children, see below) from `ha` structure.
+
+#### Class API
+
+After creation of an _object_, multiple classes can be added that share one
+status update. For each _class_ added, a unique _classname_ must be provided.
+Then, when _status_ is sent, each class will be called in turn and their
+status callback results added to the status of the parent object. This allows
+for sensors and things with multiple components (like a barometer containing
+a pressure, thermometer and hygrometer sensor all in one package) to generate
+three _config_ lines with one _status_ line.
+
+*   ***`mgos_homeassistant_object_class_add()`*** creates a new class under
+    the provided object. The _classname_ must be unique. If additional JSON
+    configuration payload is needed, it can be optionally passed. A callback
+    for _status_ is provided, and will be appended to the object's _status_
+    calls.
+*   ***`mgos_homeassistant_object_class_send_status()`*** causes the class
+    to request its parent object to send _status_, including this and all
+    sibling classes.
+*   ***`mgos_homeassistant_object_class_send_config()`*** causes the class
+    to send its own _config_.
+*   ***`mgos_homeassistant_object_class_remove()`*** removes the class from
+    its parent object.
+
 ### High Level API
 
-### Notes on Discovery
+## MQTT Discovery
 
 Using the [MQTT Discovery](https://home-assistant.io/docs/mqtt/discovery/)
 protocol, which dictates discovery topics as:
@@ -94,7 +157,7 @@ messages.
 
 Examples of MQTT topics and payloads:
 ```
-esp8266_C45ADA/sensor/barometer/0/stat {"pressure":975.62, "temperature":19.34}
+esp8266_C45ADA/sensor/barometer/0/stat {"pressure":975.62,"temperature":19.34}
 esp8266_C45ADA/sensor/barometer/pressure/0/stat 975.62
 esp8266_C45ADA/sensor/barometer/temperature/0/stat 19.34
 
@@ -106,12 +169,6 @@ The reason for using a tree hierarchy with `/` delimiters here is to enable
 nodes to subscribe to relevant topics like `esp8266_C45ADA/switch/#` to receive
 and process commands from Home Assistant.
 
-## Supported Components
+## Supported Drivers
 
-### Binary Sensor
-
-### Switch
-
-### Sensor
-
-#### Supported Sensors
+### GPIO
