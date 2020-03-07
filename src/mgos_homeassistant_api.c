@@ -107,7 +107,7 @@ static void mgos_homeassistant_mqtt_connect(
   char payload[100];
   snprintf(topic, sizeof(topic), "%s/stat", mgos_sys_config_get_device_id());
   snprintf(payload, sizeof(payload), "offline");
-  LOG(LL_INFO, ("Setting will topic='%s' payload='%s', for when we disconnect",
+  LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect",
                 topic, payload));
   opts->will_topic = strdup(topic);
   opts->will_message = strdup(payload);
