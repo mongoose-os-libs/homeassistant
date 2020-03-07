@@ -4,8 +4,8 @@ This library implements a MQTT aware [Home Assistant](https://home-assistant.io/
 interface for Mongoose OS. It offers a low-level API which allows users to
 add entities with _command_, _status_ and _attributes_ callbacks. For more
 out-of-the-box functionality, it adds a higher level API which uses a JSON
-configuration file to enable lots of things: GPIO, I2C, SPI sensors to name
-but a few.
+configuration file to enable lots of things: `GPIO`, `I2C`, `SPI` sensors to
+name but a few.
 
 All types of object are configured automatically in Home Assistant, with zero
 configuration!
@@ -14,15 +14,15 @@ configuration!
 
 ### Low Level API
 
-This API allows the creation of a _node_, adding _object_s to that node, and
-_class_es to the created objects. It then allows objects to send their _status_
+This API allows the creation of a _node_, adding _objects_ to that node, and
+_classes_ to the created objects. It then allows objects to send their _status_
 and receive _command_ and _attribute_ callbacks via MQTT.
 
 #### Node API
 
-Upon library initialization, a global _homeassistant_ object is created. It
-can be returned using ***`mgos_homeassistant_get_global()`***. After adding
-_object_s and optionally _class_es, (see below), _config_ and _status_ can
+Upon library initialization, a global `mgos_homeassistant` object is created.
+It can be returned using ***`mgos_homeassistant_get_global()`***. After adding
+_object_ and optionally _class_ entries, (see below), _config_ and _status_ can
 be sent for all objects using ***`mgos_homeassistant_send_config()`*** and
 ***`mgos_homeassistant_send_status()`*** respectively.
 
@@ -33,10 +33,9 @@ construction of objects and classes is described below.
 #### Object API
 
 *   ***`mgos_homeassistant_object_add()`*** creates a new _object_ with the
-    given `object_name` and of type `ha_component`. If additional JSON
-    configuration payload is needed, it can be passed or NULL passed. A
-    callback for _status_ calls is provided, and optionally a _userdata_
-    pointer is passed.
+    given name and of type. If additional JSON configuration payload is needed,
+    a pointer to it can be provided or NULL passed. A callback for _status_
+    calls is provided, and optionally a _userdata_ pointer is passed.
 *   ***`mgos_homeassistant_object_search()`*** searches the structure for an
     object with the given name. It returns a pointer to the object or NULL
     if none are found.
@@ -77,11 +76,13 @@ three _config_ lines with one _status_ line.
 *   ***`mgos_homeassistant_object_class_remove()`*** removes the class from
     its parent object.
 
-### High Level API
+### High Level API 
+
+(TODO)
 
 ## MQTT Discovery
 
-Using the [MQTT Discovery](https://home-assistant.io/docs/mqtt/discovery/)
+The library fully implements Home Assistant's [MQTT Discovery](https://home-assistant.io/docs/mqtt/discovery/)
 protocol, which dictates discovery topics as:
 
 `<discovery_prefix>/<component>/[<node_id>/]<object_id>/config`
