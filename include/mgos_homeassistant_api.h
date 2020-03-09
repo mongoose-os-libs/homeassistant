@@ -58,8 +58,10 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_search(
     struct mgos_homeassistant *ha, const char *query);
 void *mgos_homeassistant_object_get_userdata(
     struct mgos_homeassistant_object *o);
-bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd);
-bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr);
+bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
+                                          ha_cmd_cb cmd);
+bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
+                                           ha_attr_cb attr);
 bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o);

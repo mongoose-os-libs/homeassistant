@@ -108,7 +108,7 @@ static void mgos_homeassistant_mqtt_connect(
   snprintf(topic, sizeof(topic), "%s/stat", mgos_sys_config_get_device_id());
   snprintf(payload, sizeof(payload), "offline");
   LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect",
-                topic, payload));
+                 topic, payload));
   opts->will_topic = strdup(topic);
   opts->will_message = strdup(payload);
   opts->flags |= MG_MQTT_WILL_RETAIN;
@@ -134,6 +134,32 @@ static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
   (void) nc;
   (void) ev_data;
   (void) user_data;
+}
+
+static bool endswith(const char *str, size_t str_len, const char *suffix) {
+  if (!str || !suffix) return false;
+  size_t suffix_len = strlen(suffix);
+  if (suffix_len > str_len) return false;
+  return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
+}
+
+static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc,
+                                       const char *topic, int topic_len,
+                                       const char *msg, int msg_len, void *ud) {
+  struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
+  if (!o) return;
+
+  if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd) {
+    LOG(LL_INFO, ("Received CMD object='%s' topic='%.*s' payload='%.*s'",
+                  o->object_name, topic_len, topic, msg_len, msg));
+    o->cmd(o, msg, msg_len);
+  }
+  if (endswith(topic, (size_t) topic_len, "/attr") && o->attr) {
+    LOG(LL_INFO, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'",
+                  o->object_name, topic_len, topic, msg_len, msg));
+    o->attr(o, msg, msg_len);
+  }
+  (void) nc;
 }
 
 static char *gen_configtopic(struct mbuf *m,
@@ -270,15 +296,34 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
 
 bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
                                           ha_cmd_cb cmd) {
+  struct mbuf mbuf_topic;
+
   if (!o) return false;
   o->cmd = cmd;
+
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+  mbuf_append(&mbuf_topic, "/cmd", 4);
+  mbuf_topic.buf[mbuf_topic.len] = 0;
+  mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
+  mbuf_free(&mbuf_topic);
+
   return true;
 }
 
 bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
                                            ha_attr_cb attr) {
+  struct mbuf mbuf_topic;
   if (!o) return false;
   o->attr = attr;
+
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+  mbuf_append(&mbuf_topic, "/attr", 5);
+  mbuf_topic.buf[mbuf_topic.len] = 0;
+  mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
+  mbuf_free(&mbuf_topic);
+
   return true;
 }
 
