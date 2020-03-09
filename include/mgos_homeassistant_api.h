@@ -18,7 +18,12 @@
 
 #include <stdbool.h>
 
-#include "frozen.h"
+#include "common/queue.h"
+#include "frozen/frozen.h"
+#include "mgos.h"
+#include "mgos_config.h"
+#include "mgos_homeassistant.h"
+#include "mgos_mqtt.h"
 
 struct mgos_homeassistant;
 struct mgos_homeassistant_object;
@@ -46,6 +51,38 @@ typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *o,
 typedef void (*ha_attr_cb)(struct mgos_homeassistant_object *o,
                            const char *payload, const int payload_len);
 
+struct mgos_homeassistant {
+  char *node_name;
+  SLIST_HEAD(objects, mgos_homeassistant_object) objects;
+};
+
+struct mgos_homeassistant_object {
+  struct mgos_homeassistant *ha;
+  enum mgos_homeassistant_component component;
+  char *object_name;
+
+  bool config_sent;
+  char *json_config_additional_payload;
+
+  ha_status_cb status;
+  ha_cmd_cb cmd;
+  ha_attr_cb attr;
+  void *user_data;
+
+  SLIST_HEAD(classes, mgos_homeassistant_object_class) classes;
+  SLIST_ENTRY(mgos_homeassistant_object) entry;
+};
+
+struct mgos_homeassistant_object_class {
+  struct mgos_homeassistant_object *object;
+  char *class_name;
+  char *json_config_additional_payload;
+
+  ha_status_cb status;
+
+  SLIST_ENTRY(mgos_homeassistant_object_class) entry;
+};
+
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha);
 
@@ -56,8 +93,6 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     void *user_data);
 struct mgos_homeassistant_object *mgos_homeassistant_object_search(
     struct mgos_homeassistant *ha, const char *query);
-void *mgos_homeassistant_object_get_userdata(
-    struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
                                           ha_cmd_cb cmd);
 bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,

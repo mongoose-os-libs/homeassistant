@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#include "mgos_homeassistant_internal.h"
+#include "mgos_homeassistant_api.h"
+
 #include "mgos_ro_vars.h"
 
 extern const char *mg_build_id;
@@ -332,12 +333,6 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_search(
   return NULL;
   (void) ha;
   (void) query;
-}
-
-void *mgos_homeassistant_object_get_userdata(
-    struct mgos_homeassistant_object *o) {
-  if (!o) return NULL;
-  return o->user_data;
 }
 
 bool mgos_homeassistant_object_send_status(
