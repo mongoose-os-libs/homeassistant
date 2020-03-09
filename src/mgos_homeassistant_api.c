@@ -16,6 +16,9 @@
 
 #include "mgos_homeassistant_api.h"
 
+#include "mgos.h"
+#include "mgos_config.h"
+#include "mgos_mqtt.h"
 #include "mgos_ro_vars.h"
 
 extern const char *mg_build_id;
@@ -206,18 +209,6 @@ static char *gen_friendlyname(struct mbuf *m,
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
   return m->buf;
-}
-
-bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
-                                 const char *filename) {
-  return mgos_homeassistant_fromjson(ha, json_fread(filename));
-}
-
-bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
-                                 const char *json) {
-  if (!ha || !json) return false;
-
-  return false;
 }
 
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {

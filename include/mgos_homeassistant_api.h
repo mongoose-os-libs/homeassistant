@@ -20,10 +20,6 @@
 
 #include "common/queue.h"
 #include "frozen/frozen.h"
-#include "mgos.h"
-#include "mgos_config.h"
-#include "mgos_homeassistant.h"
-#include "mgos_mqtt.h"
 
 struct mgos_homeassistant;
 struct mgos_homeassistant_object;
