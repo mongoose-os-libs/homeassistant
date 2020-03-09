@@ -337,6 +337,11 @@ bool mgos_homeassistant_object_send_status(
   size_t len;
 
   if (!o) goto exit;
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG,
+        ("MQTT not connected, skipping status for %s", o->object_name));
+    goto exit;
+  }
 
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
@@ -373,8 +378,8 @@ bool mgos_homeassistant_object_send_status(
 
   ret = true;
 exit:
-  mbuf_free(&mbuf_payload);
-  mbuf_free(&mbuf_topic);
+  if (mbuf_payload.size > 0) mbuf_free(&mbuf_payload);
+  if (mbuf_topic.size > 0) mbuf_free(&mbuf_topic);
   return ret;
 }
 
