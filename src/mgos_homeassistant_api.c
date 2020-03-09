@@ -150,13 +150,13 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc,
   if (!o) return;
 
   if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd) {
-    LOG(LL_INFO, ("Received CMD object='%s' topic='%.*s' payload='%.*s'",
-                  o->object_name, topic_len, topic, msg_len, msg));
+    LOG(LL_DEBUG, ("Received CMD object='%s' topic='%.*s' payload='%.*s'",
+                   o->object_name, topic_len, topic, msg_len, msg));
     o->cmd(o, msg, msg_len);
   }
   if (endswith(topic, (size_t) topic_len, "/attr") && o->attr) {
-    LOG(LL_INFO, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'",
-                  o->object_name, topic_len, topic, msg_len, msg));
+    LOG(LL_DEBUG, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'",
+                   o->object_name, topic_len, topic, msg_len, msg));
     o->attr(o, msg, msg_len);
   }
   (void) nc;
