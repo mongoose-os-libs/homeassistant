@@ -319,11 +319,15 @@ bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
   return true;
 }
 
-struct mgos_homeassistant_object *mgos_homeassistant_object_search(
-    struct mgos_homeassistant *ha, const char *query) {
+struct mgos_homeassistant_object *mgos_homeassistant_object_get(
+    struct mgos_homeassistant *ha, const char *suffix) {
+  struct mgos_homeassistant_object *o = NULL;
+  if (!ha || !suffix) return NULL;
+
+  SLIST_FOREACH(o, &ha->objects, entry) {
+    if (endswith(o->object_name, strlen(o->object_name), suffix)) return o;
+  }
   return NULL;
-  (void) ha;
-  (void) query;
 }
 
 bool mgos_homeassistant_object_send_status(
@@ -532,6 +536,17 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
   LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name,
                  c->object->object_name));
   return c;
+}
+
+struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_get(
+    struct mgos_homeassistant_object *o, const char *suffix) {
+  struct mgos_homeassistant_object_class *c = NULL;
+  if (!o || !suffix) return NULL;
+
+  SLIST_FOREACH(c, &o->classes, entry) {
+    if (endswith(c->class_name, strlen(c->class_name), suffix)) return c;
+  }
+  return NULL;
 }
 
 bool mgos_homeassistant_object_class_send_config(
