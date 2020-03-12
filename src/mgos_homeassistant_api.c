@@ -417,9 +417,9 @@ static bool mgos_homeassistant_object_send_config_mqtt(
               mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s%s\"", mgos_sys_config_get_device_id(),
               "/stat");
-  if (o->status) json_printf(&payload, ",stat_t:%Q", "/stat");
-  if (o->cmd) json_printf(&payload, ",cmd_t:%Q", "/cmd");
-  if (o->attr) json_printf(&payload, ",attr_t:%Q", "/attr");
+  if (o->status) json_printf(&payload, ",stat_t:%Q", "~/stat");
+  if (o->cmd) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
+  if (o->attr) json_printf(&payload, ",attr_t:%Q", "~/attr");
   if (c) {
     json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"",
                 c->class_name, "value_json.", c->class_name);
