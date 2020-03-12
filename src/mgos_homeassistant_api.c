@@ -411,9 +411,10 @@ static bool mgos_homeassistant_object_send_config_mqtt(
   json_printf(&payload, "{\"~\":%.*Q,name:%.*Q", (int) mbuf_topicprefix.len,
               mbuf_topicprefix.buf, (int) mbuf_friendlyname.len,
               mbuf_friendlyname.buf);
-  json_printf(&payload, ",unique_id:\"%s:%s:%s\"",
+  json_printf(&payload, ",unique_id:\"%s:%s:%s:%.*Q\"",
               mgos_sys_ro_vars_get_mac_address(), mgos_sys_ro_vars_get_arch(),
-              mgos_sys_ro_vars_get_app());
+              mgos_sys_ro_vars_get_app(), (int) mbuf_friendlyname.len,
+              mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s%s\"", mgos_sys_config_get_device_id(),
               "/stat");
   if (o->status) json_printf(&payload, ",stat_t:%Q", "/stat");
