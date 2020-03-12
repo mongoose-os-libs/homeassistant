@@ -436,8 +436,6 @@ static bool mgos_homeassistant_object_send_config_mqtt(
   json_printf(&payload, ",model:%Q", mgos_sys_ro_vars_get_app());
   json_printf(&payload, ",sw_version:\"%s (%s)\"",
               mgos_sys_ro_vars_get_fw_version(), mgos_sys_ro_vars_get_fw_id());
-  json_printf(&payload, ",mg_version:\"%s (%s)\"", mg_build_version,
-              mg_build_id);
   json_printf(&payload, ",manufacturer:%Q", "Mongoose OS");
   json_printf(&payload, "}");
 
