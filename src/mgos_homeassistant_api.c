@@ -411,7 +411,7 @@ static bool mgos_homeassistant_object_send_config_mqtt(
   json_printf(&payload, "{\"~\":%.*Q,name:%.*Q", (int) mbuf_topicprefix.len,
               mbuf_topicprefix.buf, (int) mbuf_friendlyname.len,
               mbuf_friendlyname.buf);
-  json_printf(&payload, ",unique_id:\"%s:%s:%s:%.*Q\"",
+  json_printf(&payload, ",unique_id:\"%s:%s:%s:%.*s\"",
               mgos_sys_ro_vars_get_mac_address(), mgos_sys_ro_vars_get_arch(),
               mgos_sys_ro_vars_get_app(), (int) mbuf_friendlyname.len,
               mbuf_friendlyname.buf);
