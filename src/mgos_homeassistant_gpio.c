@@ -99,6 +99,101 @@ static bool mgos_homeassistant_gpio_motion_fromjson(
   return true;
 }
 
+static void momentary_stat(struct mgos_homeassistant_object *o,
+                           struct json_out *json) {
+  struct mgos_homeassistant_gpio_binary_sensor *d;
+
+  if (!o || !json) return;
+  d = (struct mgos_homeassistant_gpio_binary_sensor *) o->user_data;
+  if (!d) return;
+
+  if (d->click_count > 0)
+    json_printf(json, "action:click,count:%u", d->click_count);
+  else
+    json_printf(json, "action:%Q", "");
+}
+
+static void momentary_timer_cb(void *user_data) {
+  struct mgos_homeassistant_object *o =
+      (struct mgos_homeassistant_object *) user_data;
+  struct mgos_homeassistant_gpio_binary_sensor *d;
+
+  if (!o) return;
+  d = (struct mgos_homeassistant_gpio_binary_sensor *) o->user_data;
+  if (!d) return;
+
+  if (d->click_count > 0) {
+    mgos_homeassistant_object_send_status(o);
+    d->click_count = 0;
+    mgos_homeassistant_object_send_status(o);
+  }
+
+  // Reset state after timeout.
+  d->click_timer = 0;
+}
+
+static void momentary_button_cb(int gpio, void *user_data) {
+  struct mgos_homeassistant_object *o =
+      (struct mgos_homeassistant_object *) user_data;
+  struct mgos_homeassistant_gpio_binary_sensor *d;
+
+  if (!o) return;
+  d = (struct mgos_homeassistant_gpio_binary_sensor *) o->user_data;
+  if (!d || d->gpio != gpio) return;
+
+  bool level = mgos_gpio_read(d->gpio);
+
+  if ((d->invert && level) || (!d->invert && !level)) {
+    d->click_count++;
+  }
+  if (d->click_timer) mgos_clear_timer(d->click_timer);
+  d->click_timer = mgos_set_timer(d->timeout_ms, 0, momentary_timer_cb, o);
+}
+
+static bool mgos_homeassistant_gpio_momentary_fromjson(
+    struct mgos_homeassistant *ha, const char *object_name, int gpio,
+    struct json_token val) {
+  struct mgos_homeassistant_gpio_binary_sensor *user_data =
+      calloc(1, sizeof(*user_data));
+  struct mgos_homeassistant_object *o = NULL;
+  bool ret = false;
+
+  if (!user_data || !ha) return false;
+
+  user_data->gpio = gpio;
+  user_data->debounce_ms = 10;
+  user_data->invert = false;
+  user_data->timeout_ms = 350;
+  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d, timeout:%d}",
+             &user_data->invert, &user_data->debounce_ms,
+             &user_data->timeout_ms);
+
+  o = mgos_homeassistant_object_add(
+      ha, object_name, COMPONENT_SENSOR,
+      "\"value_template\": \"{{ value_json.action }}\"", momentary_stat,
+      user_data);
+  if (!o) goto exit;
+
+  if (!mgos_gpio_set_button_handler(
+          user_data->gpio,
+          user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN,
+          MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, momentary_button_cb,
+          o)) {
+    LOG(LL_ERROR, ("Failed to initialize GPIO button: gpio=%d invert=%d "
+                   "debounce=%d timeout=%d",
+                   user_data->gpio, user_data->invert, user_data->debounce_ms,
+                   user_data->timeout_ms));
+    goto exit;
+  }
+  LOG(LL_INFO, ("New GPIO button: gpio=%d invert=%d debounce=%d timeout=%d",
+                user_data->gpio, user_data->invert, user_data->debounce_ms,
+                user_data->timeout_ms));
+
+  ret = true;
+exit:
+  return ret;
+}
+
 bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha,
                                       struct json_token val) {
   bool ret = false;
@@ -134,6 +229,11 @@ bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha,
       LOG(LL_WARN,
           ("Failed to add motion object for provider gpio, skipping .."));
       goto exit;
+    }
+  } else if (0 == strcasecmp("momentary", j_type)) {
+    if (!mgos_homeassistant_gpio_momentary_fromjson(ha, name, j_gpio, val)) {
+      LOG(LL_WARN,
+          ("Failed to add momentary object for provider gpio, skipping .."));
     }
   }
 

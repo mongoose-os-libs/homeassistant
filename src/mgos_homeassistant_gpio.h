@@ -28,5 +28,15 @@ struct mgos_homeassistant_gpio_motion {
   mgos_timer_id timer;
 };
 
+struct mgos_homeassistant_gpio_binary_sensor {
+  int gpio;
+  int debounce_ms;
+  int timeout_ms;
+  bool invert;
+
+  uint8_t click_count;
+  mgos_timer_id click_timer;
+};
+
 bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha,
                                       struct json_token val);
