@@ -18,6 +18,7 @@
 
 #include "mgos.h"
 #include "mgos_homeassistant_barometer.h"
+#include "mgos_homeassistant_gpio.h"
 #include "mgos_homeassistant_si7021.h"
 
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
@@ -43,6 +44,15 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
   }
 
   // Read providers
+  while ((h = json_next_elem(json, strlen(json), h, ".provider.gpio", &idx,
+                             &val)) != NULL) {
+    if (!mgos_homeassistant_gpio_fromjson(ha, val)) {
+      LOG(LL_WARN, ("Failed to add object from provider gpio, index %d, json "
+                    "follows:%.*s",
+                    idx, (int) val.len, val.ptr));
+    }
+  }
+
   while ((h = json_next_elem(json, strlen(json), h, ".provider.si7021", &idx,
                              &val)) != NULL) {
 #ifdef MGOS_HAVE_SI7021_I2C
