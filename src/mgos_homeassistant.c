@@ -17,8 +17,8 @@
 #include "mgos_homeassistant.h"
 
 #include "mgos.h"
-#include "mgos_homeassistant_si7021.h"
 #include "mgos_homeassistant_barometer.h"
+#include "mgos_homeassistant_si7021.h"
 
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
                                  const char *filename) {
@@ -61,9 +61,10 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
                              &val)) != NULL) {
 #ifdef MGOS_HAVE_BAROMETER
     if (!mgos_homeassistant_barometer_fromjson(ha, val)) {
-      LOG(LL_WARN, ("Failed to add object from provider barometer, index %d, json "
-                    "follows:%.*s",
-                    idx, (int) val.len, val.ptr));
+      LOG(LL_WARN,
+          ("Failed to add object from provider barometer, index %d, json "
+           "follows:%.*s",
+           idx, (int) val.len, val.ptr));
     }
 #else
     LOG(LL_ERROR, ("provider.barometer config found: Add barometer to mos.yml, "
