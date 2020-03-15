@@ -222,6 +222,74 @@ static void toggle_button_cb(int gpio, void *user_data) {
   mgos_homeassistant_object_send_status(o);
 }
 
+static void switch_stat(struct mgos_homeassistant_object *o,
+                        struct json_out *json) {
+  struct mgos_homeassistant_gpio_switch *d;
+
+  if (!o || !json) return;
+  d = (struct mgos_homeassistant_gpio_switch *) o->user_data;
+  if (!d) return;
+
+  bool level = mgos_gpio_read_out(d->gpio);
+  if (d->invert) level = !level;
+  LOG(LL_DEBUG, ("gpio=%d level=%d invert=%d", d->gpio, level, d->invert));
+  json_printf(json, "state:%Q", level ? "ON" : "OFF");
+}
+
+static void switch_cmd_cb(struct mgos_homeassistant_object *o,
+                          const char *payload, const int payload_len) {
+  struct mgos_homeassistant_gpio_switch *d;
+
+  if (!o) return;
+  d = (struct mgos_homeassistant_gpio_switch *) o->user_data;
+  if (!d) return;
+
+  if (((payload_len == 2) && (0 == strncasecmp(payload, "ON", 2))) ||
+      ((payload_len == 1) && (0 == strncmp(payload, "1", 1)))) {
+    mgos_gpio_write(d->gpio, d->invert ? 0 : 1);
+  } else if (((payload_len == 3) && (0 == strncasecmp(payload, "OFF", 3))) ||
+             ((payload_len == 1) && (0 == strncmp(payload, "0", 1)))) {
+    mgos_gpio_write(d->gpio, d->invert ? 1 : 0);
+  } else if ((payload_len == 6) && (0 == strncasecmp(payload, "TOGGLE", 6))) {
+    mgos_gpio_toggle(d->gpio);
+  }
+  mgos_homeassistant_object_send_status(o);
+  return;
+}
+
+static bool mgos_homeassistant_gpio_switch_fromjson(
+    struct mgos_homeassistant *ha, const char *object_name, int gpio,
+    struct json_token val) {
+  struct mgos_homeassistant_gpio_switch *user_data =
+      calloc(1, sizeof(*user_data));
+  struct mgos_homeassistant_object *o = NULL;
+  bool ret = false;
+
+  if (!user_data || !ha) return false;
+
+  user_data->gpio = gpio;
+  user_data->invert = false;
+  json_scanf(val.ptr, val.len, "{invert:%B}", &user_data->invert);
+
+  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SWITCH, NULL,
+                                    switch_stat, user_data);
+  if (!o) goto exit;
+  mgos_homeassistant_object_set_cmd_cb(o, switch_cmd_cb);
+
+  if (!mgos_gpio_setup_output(user_data->gpio, user_data->invert ? 1 : 0)) {
+    LOG(LL_ERROR, ("Failed to initialize GPIO switch: gpio=%d invert=%d",
+                   user_data->gpio, user_data->invert));
+    goto exit;
+  } else {
+    LOG(LL_INFO, ("New GPIO switch: gpio=%d invert=%d", user_data->gpio,
+                  user_data->invert));
+  }
+
+  ret = true;
+exit:
+  return ret;
+}
+
 static bool mgos_homeassistant_gpio_toggle_fromjson(
     struct mgos_homeassistant *ha, const char *object_name, int gpio,
     struct json_token val) {
@@ -308,6 +376,11 @@ bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha,
     if (!mgos_homeassistant_gpio_toggle_fromjson(ha, name, j_gpio, val)) {
       LOG(LL_WARN,
           ("Failed to add toggle object for provider gpio, skipping .."));
+    }
+  } else if (0 == strcasecmp("switch", j_type)) {
+    if (!mgos_homeassistant_gpio_switch_fromjson(ha, name, j_gpio, val)) {
+      LOG(LL_WARN,
+          ("Failed to add switch object for provider gpio, skipping .."));
     }
   }
 
