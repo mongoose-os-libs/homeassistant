@@ -59,43 +59,51 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha,
   struct mgos_homeassistant_object *o = NULL;
   struct mgos_si7021 *user_data = NULL;
   char object_name[20];
+  char *name = NULL;
+  char *nameptr = NULL;
 
   if (!ha) goto exit;
 
-  json_scanf(val.ptr, val.len, "{i2caddr:%d,period:%d}", &i2caddr, &period);
+  json_scanf(val.ptr, val.len, "{i2caddr:%d,period:%d,name:%Q}", &i2caddr,
+             &period, &name);
   user_data = mgos_si7021_create(mgos_i2c_get_global(), i2caddr);
   if (!user_data) {
     LOG(LL_ERROR, ("Could not create si7021 at i2caddr=%d", i2caddr));
     goto exit;
   }
 
-  mgos_homeassistant_object_generate_name(ha, "si7021_", object_name,
-                                          sizeof(object_name));
+  if (!name) {
+    mgos_homeassistant_object_generate_name(ha, "si7021_", object_name,
+                                            sizeof(object_name));
+    nameptr = object_name;
+  } else {
+    nameptr = name;
+  }
 
-  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SENSOR, NULL,
-                                    NULL, user_data);
+  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL,
+                                    user_data);
   if (!o) {
-    LOG(LL_ERROR, ("Could not add object %s to homeassistant", object_name));
+    LOG(LL_ERROR, ("Could not add object %s to homeassistant", nameptr));
     goto exit;
   }
 
   if (!mgos_homeassistant_object_class_add(o, "humidity", NULL,
                                            si7021_stat_humidity)) {
-    LOG(LL_ERROR, ("Could not add 'humidity' class to object %s", object_name));
+    LOG(LL_ERROR, ("Could not add 'humidity' class to object %s", nameptr));
     goto exit;
   }
   if (!mgos_homeassistant_object_class_add(o, "temperature", NULL,
                                            si7021_stat_temperature)) {
-    LOG(LL_ERROR,
-        ("Could not add 'temperature' class to object %s", object_name));
+    LOG(LL_ERROR, ("Could not add 'temperature' class to object %s", nameptr));
     goto exit;
   }
 
   if (period > 0) mgos_set_timer(period * 1000, true, si7021_timer, o);
 
   ret = true;
-  LOG(LL_INFO, ("Successfully created object %s", object_name));
+  LOG(LL_INFO, ("Successfully created object %s", nameptr));
 exit:
+  if (name) free(name);
   return ret;
 }
 
