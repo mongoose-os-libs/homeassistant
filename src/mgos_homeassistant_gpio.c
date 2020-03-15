@@ -236,6 +236,19 @@ static void switch_stat(struct mgos_homeassistant_object *o,
   json_printf(json, "state:%Q", level ? "ON" : "OFF");
 }
 
+static void switch_timer_cb(void *user_data) {
+  struct mgos_homeassistant_object *o =
+      (struct mgos_homeassistant_object *) user_data;
+  struct mgos_homeassistant_gpio_switch *d;
+
+  if (!o) return;
+  d = (struct mgos_homeassistant_gpio_switch *) o->user_data;
+  if (!d) return;
+
+  mgos_gpio_toggle(d->gpio);
+  mgos_homeassistant_object_send_status(o);
+  d->timer = 0;
+}
 static void switch_cmd_cb(struct mgos_homeassistant_object *o,
                           const char *payload, const int payload_len) {
   struct mgos_homeassistant_gpio_switch *d;
@@ -244,6 +257,7 @@ static void switch_cmd_cb(struct mgos_homeassistant_object *o,
   d = (struct mgos_homeassistant_gpio_switch *) o->user_data;
   if (!d) return;
 
+  // Handle both literals (ON, 1, OFF, 0, TOGGLE) and JSON
   if (((payload_len == 2) && (0 == strncasecmp(payload, "ON", 2))) ||
       ((payload_len == 1) && (0 == strncmp(payload, "1", 1)))) {
     mgos_gpio_write(d->gpio, d->invert ? 0 : 1);
@@ -252,7 +266,25 @@ static void switch_cmd_cb(struct mgos_homeassistant_object *o,
     mgos_gpio_write(d->gpio, d->invert ? 1 : 0);
   } else if ((payload_len == 6) && (0 == strncasecmp(payload, "TOGGLE", 6))) {
     mgos_gpio_toggle(d->gpio);
+  } else {
+    // JSON variant
+    char *j_state = NULL;
+    int j_duration_ms = -1;
+    json_scanf(payload, payload_len, "{state:%Q,duration:%d}", &j_state,
+               &j_duration_ms);
+    if (!j_state) goto exit;
+    if (0 == strcasecmp(j_state, "ON"))
+      mgos_gpio_write(d->gpio, d->invert ? 0 : 1);
+    else if (0 == strcasecmp(j_state, "OFF"))
+      mgos_gpio_write(d->gpio, d->invert ? 1 : 0);
+    else if (0 == strcasecmp(j_state, "TOGGLE"))
+      mgos_gpio_toggle(d->gpio);
+    if (j_duration_ms > 0)
+      d->timer = mgos_set_timer(j_duration_ms, false, switch_timer_cb, o);
+    free(j_state);
   }
+
+exit:
   mgos_homeassistant_object_send_status(o);
   return;
 }
@@ -271,8 +303,9 @@ static bool mgos_homeassistant_gpio_switch_fromjson(
   user_data->invert = false;
   json_scanf(val.ptr, val.len, "{invert:%B}", &user_data->invert);
 
-  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SWITCH, NULL,
-                                    switch_stat, user_data);
+  o = mgos_homeassistant_object_add(
+      ha, object_name, COMPONENT_SWITCH,
+      "\"value_template\":\"{{ value_json.state }}\"", switch_stat, user_data);
   if (!o) goto exit;
   mgos_homeassistant_object_set_cmd_cb(o, switch_cmd_cb);
 
