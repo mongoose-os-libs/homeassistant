@@ -355,7 +355,7 @@ bool mgos_homeassistant_object_send_status(
   mbuf_init(&mbuf_payload, 100);
   json_printf(&payload, "{");
   len = mbuf_payload.len;
-  o->status(o, &payload);
+  if (o->status) o->status(o, &payload);
 
   i = 0;
   SLIST_FOREACH(c, &o->classes, entry) {
@@ -368,7 +368,7 @@ bool mgos_homeassistant_object_send_status(
       json_printf(&payload, "%Q", NULL);
     } else {
       len = mbuf_payload.len;
-      c->status(o, &payload);
+      if (c->status) c->status(o, &payload);
       if (mbuf_payload.len == len) json_printf(&payload, "%Q", NULL);
     }
     i++;
