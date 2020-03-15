@@ -23,12 +23,6 @@ static void si7021_timer(void *ud) {
   mgos_homeassistant_object_send_status(o);
 }
 
-/*
-static void si7021_stat(struct mgos_homeassistant_object *o, struct json_out
-*json) { if (!o || !json) return; json_printf(json, "hoi wereld");
-}
-*/
-
 static void si7021_stat_humidity(struct mgos_homeassistant_object *o,
                                  struct json_out *json) {
   struct mgos_si7021 *sensor = NULL;
