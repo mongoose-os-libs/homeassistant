@@ -16,9 +16,10 @@
 
 #pragma once
 #ifdef MGOS_HAVE_BAROMETER
+#include <strings.h>
+
 #include "mgos_barometer.h"
 #include "mgos_homeassistant.h"
-#include <strings.h>
 
 bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha,
                                            struct json_token val);

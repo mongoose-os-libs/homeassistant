@@ -87,12 +87,14 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha,
     goto exit;
   }
 
-  if (!mgos_homeassistant_object_class_add(o, "humidity", NULL,
+  if (!mgos_homeassistant_object_class_add(o, "humidity",
+                                           "\"unit_of_measurement\":\"%\"",
                                            si7021_stat_humidity)) {
     LOG(LL_ERROR, ("Could not add 'humidity' class to object %s", nameptr));
     goto exit;
   }
-  if (!mgos_homeassistant_object_class_add(o, "temperature", NULL,
+  if (!mgos_homeassistant_object_class_add(o, "temperature",
+                                           "\"unit_of_measurement\":\"°C\"",
                                            si7021_stat_temperature)) {
     LOG(LL_ERROR, ("Could not add 'temperature' class to object %s", nameptr));
     goto exit;
