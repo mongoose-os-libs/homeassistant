@@ -92,6 +92,18 @@ static bool mgos_homeassistant_exists_objectname(struct mgos_homeassistant *ha,
   return false;
 }
 
+bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha,
+                                             const char *prefix, char *name,
+                                             int namelen) {
+  int idx = 0;
+  if (!ha || !name || !prefix || namelen == 0) return false;
+  for (idx = 0; idx < 256; idx++) {
+    snprintf(name, namelen, "%s%d", prefix, idx);
+    if (!mgos_homeassistant_exists_objectname(ha, name)) return true;
+  }
+  return false;
+}
+
 static bool mgos_homeassistant_exists_classname(
     struct mgos_homeassistant_object *o, const char *s) {
   struct mgos_homeassistant_object_class *c;

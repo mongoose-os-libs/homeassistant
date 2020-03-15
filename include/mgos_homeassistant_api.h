@@ -89,6 +89,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     void *user_data);
 struct mgos_homeassistant_object *mgos_homeassistant_object_get(
     struct mgos_homeassistant *ha, const char *suffix);
+bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha, const char *prefix, char *name, int namelen);
 bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
                                           ha_cmd_cb cmd);
 bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
