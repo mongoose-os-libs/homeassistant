@@ -103,7 +103,7 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha,
   if (period > 0) mgos_set_timer(period * 1000, true, si7021_timer, o);
 
   ret = true;
-  LOG(LL_INFO, ("Successfully created object %s", nameptr));
+  LOG(LL_DEBUG, ("Successfully created object %s", nameptr));
 exit:
   if (name) free(name);
   return ret;

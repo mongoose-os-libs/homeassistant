@@ -40,7 +40,7 @@ static void motion_timeout_cb(void *ud) {
 
   m->timer = 0;
   m->state = false;
-  LOG(LL_INFO, ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
+  LOG(LL_DEBUG, ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
   mgos_homeassistant_object_send_status(o);
 }
 
@@ -65,7 +65,8 @@ static void motion_button_cb(int gpio, void *ud) {
   } else {
     if (!m->state) {
       m->state = true;
-      LOG(LL_INFO, ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
+      LOG(LL_DEBUG,
+          ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
       mgos_homeassistant_object_send_status(o);
     }
   }
@@ -179,15 +180,15 @@ static bool mgos_homeassistant_gpio_momentary_fromjson(
           user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN,
           MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, momentary_button_cb,
           o)) {
-    LOG(LL_ERROR, ("Failed to initialize GPIO button: gpio=%d invert=%d "
+    LOG(LL_ERROR, ("Failed to initialize GPIO momentary: gpio=%d invert=%d "
                    "debounce=%d timeout=%d",
                    user_data->gpio, user_data->invert, user_data->debounce_ms,
                    user_data->timeout_ms));
     goto exit;
   }
-  LOG(LL_INFO, ("New GPIO button: gpio=%d invert=%d debounce=%d timeout=%d",
-                user_data->gpio, user_data->invert, user_data->debounce_ms,
-                user_data->timeout_ms));
+  LOG(LL_DEBUG, ("New GPIO momentary: gpio=%d invert=%d debounce=%d timeout=%d",
+                 user_data->gpio, user_data->invert, user_data->debounce_ms,
+                 user_data->timeout_ms));
 
   ret = true;
 exit:
@@ -314,8 +315,8 @@ static bool mgos_homeassistant_gpio_switch_fromjson(
                    user_data->gpio, user_data->invert));
     goto exit;
   } else {
-    LOG(LL_INFO, ("New GPIO switch: gpio=%d invert=%d", user_data->gpio,
-                  user_data->invert));
+    LOG(LL_DEBUG, ("New GPIO switch: gpio=%d invert=%d", user_data->gpio,
+                   user_data->invert));
   }
 
   ret = true;
@@ -351,13 +352,13 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(
           user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN,
           MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, toggle_button_cb,
           o)) {
-    LOG(LL_ERROR, ("Failed to initialize GPIO button: gpio=%d invert=%d "
+    LOG(LL_ERROR, ("Failed to initialize GPIO toggle: gpio=%d invert=%d "
                    "debounce=%d",
                    user_data->gpio, user_data->invert, user_data->debounce_ms));
     goto exit;
   }
-  LOG(LL_INFO, ("New GPIO button: gpio=%d invert=%d debounce=%d",
-                user_data->gpio, user_data->invert, user_data->debounce_ms));
+  LOG(LL_DEBUG, ("New GPIO toggle: gpio=%d invert=%d debounce=%d",
+                 user_data->gpio, user_data->invert, user_data->debounce_ms));
 
   ret = true;
 exit:
@@ -418,7 +419,7 @@ bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha,
   }
 
   ret = true;
-  LOG(LL_INFO, ("Successfully created object %s", name));
+  LOG(LL_DEBUG, ("Successfully created object %s", name));
 exit:
   if (j_name) free(j_name);
   if (j_type) free(j_type);

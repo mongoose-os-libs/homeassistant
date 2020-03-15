@@ -154,7 +154,7 @@ bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha,
   if (period > 0) mgos_set_timer(period * 1000, true, barometer_timer, o);
 
   ret = true;
-  LOG(LL_INFO, ("Successfully created object %s", nameptr));
+  LOG(LL_DEBUG, ("Successfully created object %s", nameptr));
 exit:
   if (name) free(name);
   if (type) free(type);
