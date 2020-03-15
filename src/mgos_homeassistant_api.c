@@ -352,11 +352,11 @@ bool mgos_homeassistant_object_send_status(
   int i;
   size_t len;
 
-  if (!o) goto exit;
+  if (!o) return;
   if (!mgos_mqtt_global_is_connected()) {
     LOG(LL_DEBUG,
         ("MQTT not connected, skipping status for %s", o->object_name));
-    goto exit;
+    return;
   }
 
   mbuf_init(&mbuf_topic, 100);
