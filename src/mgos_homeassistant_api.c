@@ -119,13 +119,11 @@ static bool mgos_homeassistant_exists_classname(
 static void mgos_homeassistant_mqtt_connect(
     struct mg_connection *nc, const char *client_id,
     struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
-  char topic[100];
   char payload[100];
-  snprintf(topic, sizeof(topic), "%s/stat", mgos_sys_config_get_device_id());
   snprintf(payload, sizeof(payload), "offline");
   LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect",
-                 topic, payload));
-  opts->will_topic = strdup(topic);
+                 mgos_sys_config_get_device_id(), payload));
+  opts->will_topic = strdup(mgos_sys_config_get_device_id());
   opts->will_message = strdup(payload);
   opts->flags |= MG_MQTT_WILL_RETAIN;
   mg_send_mqtt_handshake_opt(nc, client_id, *opts);
@@ -136,10 +134,7 @@ static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
                                        void *ev_data, void *user_data) {
   switch (ev) {
     case MG_EV_MQTT_CONNACK: {
-      char topic[100];
-      snprintf(topic, sizeof(topic), "%s/stat",
-               mgos_sys_config_get_device_id());
-      mgos_mqtt_pub((char *) topic, "online", 6, 0, true);
+      mgos_mqtt_pub(mgos_sys_config_get_device_id(), "online", 6, 0, true);
       if (user_data) {
         mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
         mgos_homeassistant_send_status((struct mgos_homeassistant *) user_data);
@@ -361,7 +356,6 @@ bool mgos_homeassistant_object_send_status(
 
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
-  mbuf_append(&mbuf_topic, "/stat", 5);
   mbuf_topic.buf[mbuf_topic.len] = 0;
 
   mbuf_init(&mbuf_payload, 100);
@@ -426,9 +420,8 @@ static bool mgos_homeassistant_object_send_config_mqtt(
   json_printf(&payload, ",unique_id:\"%s:%.*s\"",
               mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len,
               mbuf_friendlyname.buf);
-  json_printf(&payload, ",avty_t:\"%s%s\"", mgos_sys_config_get_device_id(),
-              "/stat");
-  json_printf(&payload, ",stat_t:%Q", "~/stat");
+  json_printf(&payload, ",avty_t:\"%s\"", mgos_sys_config_get_device_id());
+  json_printf(&payload, ",stat_t:%Q", "~");
   if (o->cmd) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
   if (o->attr) json_printf(&payload, ",attr_t:%Q", "~/attr");
   if (c) {
