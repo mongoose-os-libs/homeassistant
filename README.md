@@ -160,7 +160,7 @@ messages.
 Examples of MQTT topics and payloads:
 ```
 esp8266_C45ADA/binary_sensor/pir0 {"motion":false}
-esp8266_24538D/sensor/button/stat {"action":"click","count":2}
+esp8266_24538D/sensor/button {"action":"click","count":2}
 esp8266_C45ADA/switch/LED {"state":"ON"}
 esp8266_C45ADA/sensor/si7021_0 {"temperature":17.58,"humidity":45.5}
 esp8266_C45ADA/sensor/barometer_0 {"pressure":974.40,"temperature":17.15}
@@ -171,8 +171,8 @@ The reason for using a tree hierarchy with `/` delimiters here is to enable
 nodes to subscribe to relevant topics like `esp8266_C45ADA/switch/#` to receive
 and process commands from Home Assistant.
 
-Each object will listen on the `<topic_prefix>/#` wildcard, and install one or
-more handlers:
+Each object will subscribe to the `<topic_prefix>/#` wildcard, and install one
+or more handlers:
 *   `/stat` -- always installed. Sending an empty message to this topic will
     make the device send a _status_ update for the object.
 *   `/cmd` -- for some object types, notably _switch_ this topic will accept
