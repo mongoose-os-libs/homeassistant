@@ -270,9 +270,9 @@ static void switch_cmd_cb(struct mgos_homeassistant_object *o,
   } else {
     // JSON variant
     char *j_state = NULL;
-    int j_duration_ms = -1;
-    json_scanf(payload, payload_len, "{state:%Q,duration:%d}", &j_state,
-               &j_duration_ms);
+    float j_duration = NAN;
+    json_scanf(payload, payload_len, "{state:%Q,duration:%f}", &j_state,
+               &j_duration);
     if (!j_state) goto exit;
     if (0 == strcasecmp(j_state, "ON"))
       mgos_gpio_write(d->gpio, d->invert ? 0 : 1);
@@ -280,8 +280,8 @@ static void switch_cmd_cb(struct mgos_homeassistant_object *o,
       mgos_gpio_write(d->gpio, d->invert ? 1 : 0);
     else if (0 == strcasecmp(j_state, "TOGGLE"))
       mgos_gpio_toggle(d->gpio);
-    if (j_duration_ms > 0)
-      d->timer = mgos_set_timer(j_duration_ms, false, switch_timer_cb, o);
+    if (j_duration > 0)
+      d->timer = mgos_set_timer(1000 * j_duration, false, switch_timer_cb, o);
     free(j_state);
   }
 
