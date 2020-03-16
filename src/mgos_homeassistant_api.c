@@ -160,12 +160,15 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc,
   struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
   if (!o) return;
 
-  if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd) {
+  if (endswith(topic, (size_t) topic_len, "/stat")) {
+    LOG(LL_DEBUG, ("Received STAT object='%s' topic='%.*s' payload='%.*s'",
+                   o->object_name, topic_len, topic, msg_len, msg));
+    mgos_homeassistant_object_send_status(o);
+  } else if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd) {
     LOG(LL_DEBUG, ("Received CMD object='%s' topic='%.*s' payload='%.*s'",
                    o->object_name, topic_len, topic, msg_len, msg));
     o->cmd(o, msg, msg_len);
-  }
-  if (endswith(topic, (size_t) topic_len, "/attr") && o->attr) {
+  } else if (endswith(topic, (size_t) topic_len, "/attr") && o->attr) {
     LOG(LL_DEBUG, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'",
                    o->object_name, topic_len, topic, msg_len, msg));
     o->attr(o, msg, msg_len);
@@ -288,6 +291,15 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
   SLIST_INIT(&o->classes);
   SLIST_INSERT_HEAD(&ha->objects, o, entry);
 
+  // Add a wildcard MQTT subscription for this object.
+  struct mbuf mbuf_topic;
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+  mbuf_append(&mbuf_topic, "/#", 2);
+  mbuf_topic.buf[mbuf_topic.len] = 0;
+  mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
+  mbuf_free(&mbuf_topic);
+
   LOG(LL_DEBUG,
       ("Created object '%s' on node '%s'", o->object_name, o->ha->node_name));
   return o;
@@ -295,34 +307,15 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
 
 bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
                                           ha_cmd_cb cmd) {
-  struct mbuf mbuf_topic;
-
   if (!o) return false;
   o->cmd = cmd;
-
-  mbuf_init(&mbuf_topic, 100);
-  gen_topicprefix(&mbuf_topic, o);
-  mbuf_append(&mbuf_topic, "/cmd", 4);
-  mbuf_topic.buf[mbuf_topic.len] = 0;
-  mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
-  mbuf_free(&mbuf_topic);
-
   return true;
 }
 
 bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
                                            ha_attr_cb attr) {
-  struct mbuf mbuf_topic;
   if (!o) return false;
   o->attr = attr;
-
-  mbuf_init(&mbuf_topic, 100);
-  gen_topicprefix(&mbuf_topic, o);
-  mbuf_append(&mbuf_topic, "/attr", 5);
-  mbuf_topic.buf[mbuf_topic.len] = 0;
-  mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
-  mbuf_free(&mbuf_topic);
-
   return true;
 }
 
