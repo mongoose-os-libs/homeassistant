@@ -104,17 +104,18 @@ Here, we map the fields to objects as follows:
 Derived from these are:
 
 *    `<object_id>` is a composed string that _uniquely_ identifies the
-     component on the node: `[<class_id>_]<provider>_<index>`.
+     component on the node: `<provider>_<index>[_<class_id>]`.
 *    `<name>` is a composed string that _uniquely_ identifies the object in
-     Home Assistant: `<node_id>_<object_id>`.
+     Home Assistant: `<node_id>_<object_id>`. It can also be set explicitly
+     when creating the object.
 
 Examples of a discovery config topic:
 ```
-homeassistant/switch/esp8266_C45ADA/gpio_12/config
-homeassistant/binary_sensor/esp8266_C45ADA/gpio_0/config
-homeassistant/sensor/esp8266_C45ADA/temperature_barometer_0/config
-homeassistant/sensor/esp8266_C45ADA/pressure_barometer_0/config
-homeassistant/sensor/esp8266_C45ADA/humidity_barometer_0/config
+homeassistant/switch/esp8266_C45ADA/LED/config
+homeassistant/binary_sensor/esp8266_C45ADA/button/config
+homeassistant/sensor/esp8266_C45ADA/barometer_0_temperature/config
+homeassistant/sensor/esp8266_C45ADA/barometer_0_pressure/config
+homeassistant/sensor/esp8266_C45ADA/barometer_0_humidity/config
 ```
 The first two examples above do not have a `device_class` setting.
 The third through fifth ones have a `device_class` of `temperature`, `pressure`
@@ -140,15 +141,15 @@ described above are thus:
 ```
 switch.esp8266_C45ADA_gpio_12
 binary_sensor.esp8266_C45ADA_gpio_0
-sensor.esp8266_C45ADA_temperature_barometer_0
-sensor.esp8266_C45ADA_pressure_barometer_0
-sensor.esp8266_C45ADA_humidity_barometer_0
+sensor.esp8266_C45ADA_barometer_0_temperature
+sensor.esp8266_C45ADA_barometer_0_pressure
+sensor.esp8266_C45ADA_si7021_0_humidity
 ```
 
 ### MQTT Topics
 
 For each object, a `<topic_prefix>` is derived:
-*    `<topic_prefix>` is `<node_id>/<component>/<provider>/[<class>/]<index>`.
+*    `<topic_prefix>` is `<node_id>/<component>/<name>[_<class>/]<index>`.
 *    `<topics>` are then appended, eg. `/stat` or `/cmd`.
 
 Implementations are able to report all data on an object either in multiple
@@ -158,18 +159,28 @@ messages.
 
 Examples of MQTT topics and payloads:
 ```
-esp8266_C45ADA/sensor/barometer/0/stat {"pressure":975.62,"temperature":19.34}
-esp8266_C45ADA/sensor/barometer/pressure/0/stat 975.62
-esp8266_C45ADA/sensor/barometer/temperature/0/stat 19.34
+esp8266_C45ADA/binary_sensor/pir0 {"motion":false}
+esp8266_24538D/sensor/button/stat {"action":"click","count":2}
+esp8266_C45ADA/switch/LED {"state":"ON"}
+esp8266_C45ADA/sensor/si7021_0 {"temperature":17.58,"humidity":45.5}
+esp8266_C45ADA/sensor/barometer_0 {"pressure":974.40,"temperature":17.15}
 
-esp8266_C45ADA/switch/gpio/12/cmd ON
-esp8266_C45ADA/binary_sensor/gpio/0/stat OFF
 ```
 
 The reason for using a tree hierarchy with `/` delimiters here is to enable
 nodes to subscribe to relevant topics like `esp8266_C45ADA/switch/#` to receive
 and process commands from Home Assistant.
 
+Each object will listen on the `<topic_prefix>/#` wildcard, and install one or
+more handlers:
+*   `/stat` -- always installed. Sending an empty message to this topic will
+    make the device send a _status_ update for the object.
+*   `/cmd` -- for some object types, notably _switch_ this topic will accept
+    commands that change the state (for example, setting an LED or Relay on
+    or off).
+*   `/attr` -- for those objects that implement it, additional JSON attributes
+    for the object can be queried by sending an empty message to this topic.
+
 ## Supported Drivers
 
-### GPIO
+TODO(pim).
