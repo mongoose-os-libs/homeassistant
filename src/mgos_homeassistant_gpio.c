@@ -205,9 +205,9 @@ static void toggle_stat(struct mgos_homeassistant_object *o,
 
   bool level = mgos_gpio_read(d->gpio);
   if ((d->invert && level) || (!d->invert && !level)) {
-    json_printf(json, "action:OFF");
+    json_printf(json, "state:OFF");
   } else {
-    json_printf(json, "action:ON");
+    json_printf(json, "state:ON");
   }
 }
 
@@ -221,6 +221,47 @@ static void toggle_button_cb(int gpio, void *user_data) {
   if (!d || d->gpio != gpio) return;
 
   mgos_homeassistant_object_send_status(o);
+}
+
+static bool mgos_homeassistant_gpio_toggle_fromjson(
+    struct mgos_homeassistant *ha, const char *object_name, int gpio,
+    struct json_token val) {
+  struct mgos_homeassistant_gpio_binary_sensor *user_data =
+      calloc(1, sizeof(*user_data));
+  struct mgos_homeassistant_object *o = NULL;
+  bool ret = false;
+
+  if (!user_data || !ha) return false;
+
+  user_data->gpio = gpio;
+  user_data->debounce_ms = 10;
+  user_data->invert = false;
+  user_data->timeout_ms = -1;
+  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d}", &user_data->invert,
+             &user_data->debounce_ms);
+
+  o = mgos_homeassistant_object_add(
+      ha, object_name, COMPONENT_BINARY_SENSOR,
+      "\"value_template\": \"{{ value_json.state }}\"", toggle_stat,
+      user_data);
+  if (!o) goto exit;
+
+  if (!mgos_gpio_set_button_handler(
+          user_data->gpio,
+          user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN,
+          MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, toggle_button_cb,
+          o)) {
+    LOG(LL_ERROR, ("Failed to initialize GPIO toggle: gpio=%d invert=%d "
+                   "debounce=%d",
+                   user_data->gpio, user_data->invert, user_data->debounce_ms));
+    goto exit;
+  }
+  LOG(LL_DEBUG, ("New GPIO toggle: gpio=%d invert=%d debounce=%d",
+                 user_data->gpio, user_data->invert, user_data->debounce_ms));
+
+  ret = true;
+exit:
+  return ret;
 }
 
 static void switch_stat(struct mgos_homeassistant_object *o,
@@ -250,6 +291,7 @@ static void switch_timer_cb(void *user_data) {
   mgos_homeassistant_object_send_status(o);
   d->timer = 0;
 }
+
 static void switch_cmd_cb(struct mgos_homeassistant_object *o,
                           const char *payload, const int payload_len) {
   struct mgos_homeassistant_gpio_switch *d;
@@ -318,47 +360,6 @@ static bool mgos_homeassistant_gpio_switch_fromjson(
     LOG(LL_DEBUG, ("New GPIO switch: gpio=%d invert=%d", user_data->gpio,
                    user_data->invert));
   }
-
-  ret = true;
-exit:
-  return ret;
-}
-
-static bool mgos_homeassistant_gpio_toggle_fromjson(
-    struct mgos_homeassistant *ha, const char *object_name, int gpio,
-    struct json_token val) {
-  struct mgos_homeassistant_gpio_binary_sensor *user_data =
-      calloc(1, sizeof(*user_data));
-  struct mgos_homeassistant_object *o = NULL;
-  bool ret = false;
-
-  if (!user_data || !ha) return false;
-
-  user_data->gpio = gpio;
-  user_data->debounce_ms = 10;
-  user_data->invert = false;
-  user_data->timeout_ms = -1;
-  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d}", &user_data->invert,
-             &user_data->debounce_ms);
-
-  o = mgos_homeassistant_object_add(
-      ha, object_name, COMPONENT_BINARY_SENSOR,
-      "\"value_template\": \"{{ value_json.action }}\"", toggle_stat,
-      user_data);
-  if (!o) goto exit;
-
-  if (!mgos_gpio_set_button_handler(
-          user_data->gpio,
-          user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN,
-          MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, toggle_button_cb,
-          o)) {
-    LOG(LL_ERROR, ("Failed to initialize GPIO toggle: gpio=%d invert=%d "
-                   "debounce=%d",
-                   user_data->gpio, user_data->invert, user_data->debounce_ms));
-    goto exit;
-  }
-  LOG(LL_DEBUG, ("New GPIO toggle: gpio=%d invert=%d debounce=%d",
-                 user_data->gpio, user_data->invert, user_data->debounce_ms));
 
   ret = true;
 exit:
