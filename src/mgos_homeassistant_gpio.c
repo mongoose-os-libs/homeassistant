@@ -16,8 +16,8 @@
 
 #include "mgos_homeassistant_gpio.h"
 
-#include <strings.h>
 #include <math.h>
+#include <strings.h>
 
 static void motion_stat(struct mgos_homeassistant_object *o,
                         struct json_out *json) {
@@ -27,7 +27,8 @@ static void motion_stat(struct mgos_homeassistant_object *o,
   m = (struct mgos_homeassistant_gpio_motion *) o->user_data;
   if (!m) return;
 
-  json_printf(json, "occupancy:%B", m->state);
+  LOG(LL_DEBUG, ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
+  json_printf(json, "motion:%B", m->state);
 }
 
 static void motion_timeout_cb(void *ud) {
@@ -41,7 +42,6 @@ static void motion_timeout_cb(void *ud) {
 
   m->timer = 0;
   m->state = false;
-  LOG(LL_DEBUG, ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
   mgos_homeassistant_object_send_status(o);
 }
 
@@ -66,8 +66,6 @@ static void motion_button_cb(int gpio, void *ud) {
   } else {
     if (!m->state) {
       m->state = true;
-      LOG(LL_DEBUG,
-          ("GPIO %d is %s", m->gpio, m->state ? "detected" : "clear"));
       mgos_homeassistant_object_send_status(o);
     }
   }
@@ -92,7 +90,7 @@ static bool mgos_homeassistant_gpio_motion_fromjson(
   o = mgos_homeassistant_object_add(
       ha, object_name, COMPONENT_BINARY_SENSOR,
       "\"payload_on\":true,\"payload_off\":false,\"value_template\":\"{{ "
-      "value_json.occupancy }}\",\"device_class\":\"motion\"",
+      "value_json.motion }}\",\"device_class\":\"motion\"",
       motion_stat, user_data);
   mgos_gpio_set_button_handler(user_data->gpio, MGOS_GPIO_PULL_UP,
                                MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms,
@@ -243,8 +241,7 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(
 
   o = mgos_homeassistant_object_add(
       ha, object_name, COMPONENT_BINARY_SENSOR,
-      "\"value_template\": \"{{ value_json.state }}\"", toggle_stat,
-      user_data);
+      "\"value_template\": \"{{ value_json.state }}\"", toggle_stat, user_data);
   if (!o) goto exit;
 
   if (!mgos_gpio_set_button_handler(
