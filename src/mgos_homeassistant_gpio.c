@@ -17,6 +17,7 @@
 #include "mgos_homeassistant_gpio.h"
 
 #include <strings.h>
+#include <math.h>
 
 static void motion_stat(struct mgos_homeassistant_object *o,
                         struct json_out *json) {
