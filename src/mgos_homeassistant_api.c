@@ -331,24 +331,12 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_get(
   return NULL;
 }
 
-bool mgos_homeassistant_object_send_status(
-    struct mgos_homeassistant_object *o) {
+bool mgos_homeassistant_object_get_status(struct mgos_homeassistant_object *o) {
   struct mgos_homeassistant_object_class *c = NULL;
-  struct mbuf mbuf_topic;
   int i;
   size_t len;
 
   if (!o) return false;
-  if (!mgos_mqtt_global_is_connected()) {
-    LOG(LL_DEBUG,
-        ("MQTT not connected, skipping status for %s", o->object_name));
-    return false;
-  }
-
-  mbuf_init(&mbuf_topic, 100);
-  gen_topicprefix(&mbuf_topic, o);
-  mbuf_topic.buf[mbuf_topic.len] = 0;
-
   struct json_out payload = JSON_OUT_MBUF(&o->status);
   o->status.len = 0;
 
@@ -373,6 +361,25 @@ bool mgos_homeassistant_object_send_status(
     i++;
   }
   json_printf(&payload, "}");
+  return true;
+}
+
+bool mgos_homeassistant_object_send_status(
+    struct mgos_homeassistant_object *o) {
+  struct mbuf mbuf_topic;
+
+  if (!o) return false;
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG,
+        ("MQTT not connected, skipping status for %s", o->object_name));
+    return false;
+  }
+
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+  mbuf_topic.buf[mbuf_topic.len] = 0;
+
+  mgos_homeassistant_object_get_status(o);
 
   LOG(LL_DEBUG, ("Status topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
                  mbuf_topic.buf, (int) o->status.len, o->status.buf));

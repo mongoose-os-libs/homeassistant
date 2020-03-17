@@ -97,6 +97,7 @@ bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
                                           ha_cmd_cb cmd);
 bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
                                            ha_attr_cb attr);
+bool mgos_homeassistant_object_get_status(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o);
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o);
