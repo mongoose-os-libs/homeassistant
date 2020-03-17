@@ -45,13 +45,17 @@ construction of objects and classes is described below.
     for _command_ MQTT requests.
 *   ***`mgos_homeassistant_object_set_attr_cb()`*** sets the callback function
     for _attribute_ MQTT requests.
-*   ***`mgos_homeassistant_object_send_status()`*** sends an MQTT update with
-    the _status_ of the object. The status itself is provided by the callback
-    given at object creation time.
+*   ***`mgos_homeassistant_object_get_status()`*** assembles a _status_ JSON
+    structure of the object, including its classes (see below). Status elements
+    themselves are provided by callback functions at object/class creation
+    time.
+*   ***`mgos_homeassistant_object_send_status()`*** assembles and sends an MQTT
+    update with the _status_ of the object. The status itself is provided by
+    the callback given at object creation time.
 *   ***`mgos_homeassistant_object_send_config()`*** sends a MQTT update with
-    the configuration of the object (and its children, see below).
+    the configuration of the object (and its classes, see below).
 *   ***`mgos_homeassistant_object_remove()`*** removes the object (and its
-    children, see below) from `ha` structure.
+    classes, see below) from `ha` structure.
 
 #### Class API
 
@@ -67,7 +71,7 @@ three _config_ lines with one _status_ line.
     the provided object. The _classname_ must be unique. If additional JSON
     configuration payload is needed, it can be optionally passed. A callback
     for _status_ is provided, and will be appended to the object's _status_
-    calls.
+    JSON structure, keyed by _classname_.
 *   ***`mgos_homeassistant_object_class_send_status()`*** causes the class
     to request its parent object to send _status_, including this and all
     sibling classes.
