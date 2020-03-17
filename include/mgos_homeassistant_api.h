@@ -20,6 +20,7 @@
 
 #include "common/queue.h"
 #include "frozen/frozen.h"
+#include "common/mbuf.h"
 
 struct mgos_homeassistant;
 struct mgos_homeassistant_object;
@@ -60,10 +61,12 @@ struct mgos_homeassistant_object {
   bool config_sent;
   char *json_config_additional_payload;
 
-  ha_status_cb status;
-  ha_cmd_cb cmd;
-  ha_attr_cb attr;
+  ha_status_cb status_cb;
+  ha_cmd_cb cmd_cb;
+  ha_attr_cb attr_cb;
   void *user_data;
+
+  struct mbuf status;
 
   SLIST_HEAD(classes, mgos_homeassistant_object_class) classes;
   SLIST_ENTRY(mgos_homeassistant_object) entry;
@@ -74,7 +77,7 @@ struct mgos_homeassistant_object_class {
   char *class_name;
   char *json_config_additional_payload;
 
-  ha_status_cb status;
+  ha_status_cb status_cb;
 
   SLIST_ENTRY(mgos_homeassistant_object_class) entry;
 };
