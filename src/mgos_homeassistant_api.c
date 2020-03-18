@@ -24,8 +24,6 @@
 extern const char *mg_build_id;
 extern const char *mg_build_version;
 
-static struct mgos_homeassistant *s_homeassistant = NULL;
-
 static const char *ha_component_str(enum mgos_homeassistant_component ha_component) {
   switch (ha_component) {
     case COMPONENT_ALARM_CONTROL_PANEL:
@@ -120,33 +118,6 @@ static bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int 
     h->ev_handler(ha, ev, ev_data, h->user_data);
   }
   return true;
-}
-
-static void mgos_homeassistant_mqtt_connect(struct mg_connection *nc, const char *client_id, struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
-  char payload[100];
-  snprintf(payload, sizeof(payload), "offline");
-  LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect", mgos_sys_config_get_device_id(), payload));
-  opts->will_topic = strdup(mgos_sys_config_get_device_id());
-  opts->will_message = strdup(payload);
-  opts->flags |= MG_MQTT_WILL_RETAIN;
-  mg_send_mqtt_handshake_opt(nc, client_id, *opts);
-  (void) fn_arg;
-}
-
-static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data, void *user_data) {
-  switch (ev) {
-    case MG_EV_MQTT_CONNACK: {
-      mgos_mqtt_pub(mgos_sys_config_get_device_id(), "online", 6, 0, true);
-      if (user_data) {
-        mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
-        mgos_homeassistant_send_status((struct mgos_homeassistant *) user_data);
-      }
-      break;
-    }
-  }
-  (void) nc;
-  (void) ev_data;
-  (void) user_data;
 }
 
 static bool endswith(const char *str, size_t str_len, const char *suffix) {
@@ -536,10 +507,6 @@ bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object_cla
   return true;
 }
 
-struct mgos_homeassistant *mgos_homeassistant_get_global() {
-  return s_homeassistant;
-}
-
 bool mgos_homeassistant_add_handler(struct mgos_homeassistant *ha, ha_ev_handler ev_handler, void *user_data) {
   struct mgos_homeassistant_handler *h;
 
@@ -550,20 +517,5 @@ bool mgos_homeassistant_add_handler(struct mgos_homeassistant *ha, ha_ev_handler
 
   SLIST_INSERT_HEAD(&ha->handlers, h, entry);
   mgos_homeassistant_call_handlers(ha, MGOS_HOMEASSISTANT_EV_ADD_HANDLER, NULL);
-  return true;
-}
-
-bool mgos_homeassistant_init(void) {
-  s_homeassistant = calloc(1, sizeof(struct mgos_homeassistant));
-  if (!s_homeassistant) return false;
-
-  s_homeassistant->node_name = strdup(mgos_sys_config_get_device_id());
-  SLIST_INIT(&s_homeassistant->objects);
-  SLIST_INIT(&s_homeassistant->automations);
-  SLIST_INIT(&s_homeassistant->handlers);
-
-  mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, s_homeassistant);
-  mgos_mqtt_set_connect_fn(mgos_homeassistant_mqtt_connect, NULL);
-  LOG(LL_DEBUG, ("Created homeassistant node '%s'", s_homeassistant->node_name));
   return true;
 }
