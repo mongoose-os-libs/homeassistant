@@ -154,7 +154,7 @@ static bool mgos_homeassistant_automation_run_triggers(struct mgos_homeassistant
   struct mgos_homeassistant_automation_data *d;
   if (!a || !trigger_data || !a->trigger_cb) return false;
   SLIST_FOREACH(d, &a->triggers, entry) {
-    if ((trigger_type == d->type) && a->trigger_cb(d->type, trigger_data, d->data)) return true;
+    if ((trigger_type == d->type) && a->trigger_cb(d->type, trigger_data, d->data, a->user_data)) return true;
   }
   return false;
 }
@@ -163,7 +163,7 @@ static bool mgos_homeassistant_automation_run_conditions(struct mgos_homeassista
   struct mgos_homeassistant_automation_data *d;
   if (!a || !a->condition_cb) return false;
   SLIST_FOREACH(d, &a->conditions, entry) {
-    if (!a->condition_cb(d->type, d->data)) return false;
+    if (!a->condition_cb(d->type, d->data, a->user_data)) return false;
   }
   return true;
 }
@@ -172,7 +172,7 @@ static bool mgos_homeassistant_automation_run_actions(struct mgos_homeassistant_
   struct mgos_homeassistant_automation_data *d;
   if (!a || !a->action_cb) return false;
   SLIST_FOREACH(d, &a->conditions, entry) {
-    a->action_cb(d->type, d->data);
+    a->action_cb(d->type, d->data, a->user_data);
   }
   return false;
 }

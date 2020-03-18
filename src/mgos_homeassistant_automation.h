@@ -35,9 +35,10 @@ enum mgos_homeassistant_automation_datatype {
   ACTION_COMMAND = 202
 };
 
-typedef bool (*mgos_homeassistant_automation_trigger_cb)(enum mgos_homeassistant_automation_datatype type, void *trigger_data, void *data);
-typedef bool (*mgos_homeassistant_automation_condition_cb)(enum mgos_homeassistant_automation_datatype type, void *data);
-typedef bool (*mgos_homeassistant_automation_action_cb)(enum mgos_homeassistant_automation_datatype type, void *data);
+typedef bool (*mgos_homeassistant_automation_trigger_cb)(enum mgos_homeassistant_automation_datatype type, void *trigger_data, void *data,
+                                                         void *user_data);
+typedef bool (*mgos_homeassistant_automation_condition_cb)(enum mgos_homeassistant_automation_datatype type, void *data, void *user_data);
+typedef bool (*mgos_homeassistant_automation_action_cb)(enum mgos_homeassistant_automation_datatype type, void *data, void *user_data);
 
 struct mgos_homeassistant_automation {
   SLIST_HEAD(triggers, mgos_homeassistant_automation_data) triggers;
