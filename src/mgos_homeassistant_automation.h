@@ -36,19 +36,10 @@ enum mgos_homeassistant_automation_datatype {
   ACTION_COMMAND = 202
 };
 
-typedef bool (*mgos_homeassistant_automation_trigger_cb)(enum mgos_homeassistant_automation_datatype type, void *trigger_data, void *data,
-                                                         void *user_data);
-typedef bool (*mgos_homeassistant_automation_condition_cb)(enum mgos_homeassistant_automation_datatype type, void *data, void *user_data);
-typedef bool (*mgos_homeassistant_automation_action_cb)(enum mgos_homeassistant_automation_datatype type, void *data, void *user_data);
-
 struct mgos_homeassistant_automation {
   SLIST_HEAD(triggers, mgos_homeassistant_automation_data) triggers;
   SLIST_HEAD(conditions, mgos_homeassistant_automation_data) conditions;
   SLIST_HEAD(actions, mgos_homeassistant_automation_data) actions;
-
-  mgos_homeassistant_automation_trigger_cb trigger_cb;
-  mgos_homeassistant_automation_condition_cb condition_cb;
-  mgos_homeassistant_automation_action_cb action_cb;
 
   SLIST_ENTRY(mgos_homeassistant_automation) entry;
 };
@@ -62,23 +53,20 @@ struct mgos_homeassistant_automation_data {
 
 struct mgos_homeassistant_automation_data_status {
   char *object;
-  struct mbuf *status;
+  char *status;
 };
 
 struct mgos_homeassistant_automation_data_action_mqtt {
   char *topic;
-  struct mbuf *payload;
+  char *payload;
 };
 
 struct mgos_homeassistant_automation_data_action_command {
   char *object;
-  struct mbuf *payload;
+  char *payload;
 };
 
 struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(struct json_token val);
-bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_trigger_cb trigger_cb);
-bool mgos_homeassistant_automation_set_condition_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_condition_cb condition_cb);
-bool mgos_homeassistant_automation_set_action_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_action_cb action_cb);
 
 bool mgos_homeassistant_automation_add_trigger(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype type, void *data);
 bool mgos_homeassistant_automation_add_condition(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype type,
