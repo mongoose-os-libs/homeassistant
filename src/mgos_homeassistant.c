@@ -21,13 +21,11 @@
 #include "mgos_homeassistant_gpio.h"
 #include "mgos_homeassistant_si7021.h"
 
-bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
-                                 const char *filename) {
+bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename) {
   return mgos_homeassistant_fromjson(ha, json_fread(filename));
 }
 
-bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
-                                 const char *json) {
+bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json) {
   struct json_token val;
   void *h = NULL;
   int idx;
@@ -44,8 +42,7 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
   }
 
   // Read providers
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.gpio", &idx,
-                             &val)) != NULL) {
+  while ((h = json_next_elem(json, strlen(json), h, ".provider.gpio", &idx, &val)) != NULL) {
     if (!mgos_homeassistant_gpio_fromjson(ha, val)) {
       LOG(LL_WARN, ("Failed to add object from provider gpio, index %d, json "
                     "follows:%.*s",
@@ -53,8 +50,7 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
     }
   }
 
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.si7021", &idx,
-                             &val)) != NULL) {
+  while ((h = json_next_elem(json, strlen(json), h, ".provider.si7021", &idx, &val)) != NULL) {
 #ifdef MGOS_HAVE_SI7021_I2C
     if (!mgos_homeassistant_si7021_fromjson(ha, val)) {
       LOG(LL_WARN, ("Failed to add object from provider si7021, index %d, json "
@@ -67,14 +63,12 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
 #endif
   }
 
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.barometer", &idx,
-                             &val)) != NULL) {
+  while ((h = json_next_elem(json, strlen(json), h, ".provider.barometer", &idx, &val)) != NULL) {
 #ifdef MGOS_HAVE_BAROMETER
     if (!mgos_homeassistant_barometer_fromjson(ha, val)) {
-      LOG(LL_WARN,
-          ("Failed to add object from provider barometer, index %d, json "
-           "follows:%.*s",
-           idx, (int) val.len, val.ptr));
+      LOG(LL_WARN, ("Failed to add object from provider barometer, index %d, json "
+                    "follows:%.*s",
+                    idx, (int) val.len, val.ptr));
     }
 #else
     LOG(LL_ERROR, ("provider.barometer config found: Add barometer to mos.yml, "

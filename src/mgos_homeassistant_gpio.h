@@ -45,5 +45,4 @@ struct mgos_homeassistant_gpio_switch {
   mgos_timer_id timer;
 };
 
-bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha,
-                                      struct json_token val);
+bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha, struct json_token val);

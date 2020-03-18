@@ -20,8 +20,7 @@
 
 #include "mgos.h"
 
-struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(
-    void *user_data) {
+struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void *user_data) {
   struct mgos_homeassistant_automation *a = calloc(1, sizeof(*a));
   if (!a) return NULL;
 
@@ -33,92 +32,73 @@ struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(
   return a;
 }
 
-bool mgos_homeassistant_automation_set_trigger_cb(
-    struct mgos_homeassistant_automation *a,
-    mgos_homeassistant_automation_cb cb) {
+bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_cb cb) {
   if (!a) return false;
   a->trigger_cb = cb;
   return true;
 }
 
-bool mgos_homeassistant_automation_set_condition_cb(
-    struct mgos_homeassistant_automation *a,
-    mgos_homeassistant_automation_cb cb) {
+bool mgos_homeassistant_automation_set_condition_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_cb cb) {
   if (!a) return false;
   a->condition_cb = cb;
   return true;
 }
 
-bool mgos_homeassistant_automation_set_action_cb(
-    struct mgos_homeassistant_automation *a,
-    mgos_homeassistant_automation_cb cb) {
+bool mgos_homeassistant_automation_set_action_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_cb cb) {
   if (!a) return false;
   a->action_cb = cb;
   return true;
 }
 
-bool mgos_homeassistant_automation_add_trigger(
-    struct mgos_homeassistant_automation *a,
-    enum mgos_homeassistant_automation_datatype type, void *data) {
+bool mgos_homeassistant_automation_add_trigger(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype type,
+                                               void *data) {
   if (!a) return false;
-  struct mgos_homeassistant_automation_data *d =
-      mgos_homeassistant_automation_data_create(type, data);
+  struct mgos_homeassistant_automation_data *d = mgos_homeassistant_automation_data_create(type, data);
   if (!d) return false;
   SLIST_INSERT_HEAD(&a->triggers, d, entry);
   LOG(LL_DEBUG, ("Inserted automation trigger data type %d", type));
   return true;
 }
 
-bool mgos_homeassistant_automation_add_condition(
-    struct mgos_homeassistant_automation *a,
-    enum mgos_homeassistant_automation_datatype type, void *data) {
+bool mgos_homeassistant_automation_add_condition(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype type,
+                                                 void *data) {
   if (!a) return false;
-  struct mgos_homeassistant_automation_data *d =
-      mgos_homeassistant_automation_data_create(type, data);
+  struct mgos_homeassistant_automation_data *d = mgos_homeassistant_automation_data_create(type, data);
   if (!d) return false;
   SLIST_INSERT_HEAD(&a->conditions, d, entry);
   LOG(LL_DEBUG, ("Inserted automation condition data type %d", type));
   return true;
 }
 
-bool mgos_homeassistant_automation_add_action(
-    struct mgos_homeassistant_automation *a,
-    enum mgos_homeassistant_automation_datatype type, void *data) {
+bool mgos_homeassistant_automation_add_action(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype type, void *data) {
   if (!a) return false;
-  struct mgos_homeassistant_automation_data *d =
-      mgos_homeassistant_automation_data_create(type, data);
+  struct mgos_homeassistant_automation_data *d = mgos_homeassistant_automation_data_create(type, data);
   if (!d) return false;
   SLIST_INSERT_HEAD(&a->actions, d, entry);
   LOG(LL_DEBUG, ("Inserted automation action data type %d", type));
   return true;
 }
 
-bool mgos_homeassistant_automation_fromfile(
-    struct mgos_homeassistant_automation *a, const char *filename) {
+bool mgos_homeassistant_automation_fromfile(struct mgos_homeassistant_automation *a, const char *filename) {
   return mgos_homeassistant_automation_fromjson(a, json_fread(filename));
 }
 
-bool mgos_homeassistant_automation_fromjson(
-    struct mgos_homeassistant_automation *a, const char *json) {
+bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation *a, const char *json) {
   struct json_token val;
   void *h = NULL;
   int idx;
 
   if (!a || !json) return false;
-  while ((h = json_next_elem(json, strlen(json), h, ".trigger", &idx, &val)) !=
-         NULL) {
+  while ((h = json_next_elem(json, strlen(json), h, ".trigger", &idx, &val)) != NULL) {
     LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
     char *j_type = NULL;
     json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
     if (!j_type || 0 == strcasecmp(j_type, "status")) {
-      struct mgos_homeassistant_automation_data_status *dd =
-          calloc(1, sizeof(*dd));
+      struct mgos_homeassistant_automation_data_status *dd = calloc(1, sizeof(*dd));
       if (dd) {
-        json_scanf(val.ptr, val.len, "{object:%Q,status:%Q}", &dd->object,
-                   &dd->status);
+        json_scanf(val.ptr, val.len, "{object:%Q,status:%Q}", &dd->object, &dd->status);
         if (!mgos_homeassistant_automation_add_trigger(a, TRIGGER_STATUS, dd)) {
-          LOG(LL_WARN, ("Could not add trigger JSON: %.*s, skipping",
-                        (int) val.len, val.ptr));
+          LOG(LL_WARN, ("Could not add trigger JSON: %.*s, skipping", (int) val.len, val.ptr));
         } else {
           LOG(LL_DEBUG, ("Added trigger JSON: %.*s", (int) val.len, val.ptr));
         }
@@ -128,21 +108,16 @@ bool mgos_homeassistant_automation_fromjson(
     }
     if (j_type) free(j_type);
   }
-  while ((h = json_next_elem(json, strlen(json), h, ".condition", &idx,
-                             &val)) != NULL) {
+  while ((h = json_next_elem(json, strlen(json), h, ".condition", &idx, &val)) != NULL) {
     LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
     char *j_type = NULL;
     json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
     if (!j_type || 0 == strcasecmp(j_type, "status")) {
-      struct mgos_homeassistant_automation_data_status *dd =
-          calloc(1, sizeof(*dd));
+      struct mgos_homeassistant_automation_data_status *dd = calloc(1, sizeof(*dd));
       if (dd) {
-        json_scanf(val.ptr, val.len, "{object:%Q,status:%Q}", &dd->object,
-                   &dd->status);
-        if (!mgos_homeassistant_automation_add_condition(a, CONDITION_STATUS,
-                                                         dd)) {
-          LOG(LL_WARN, ("Could not add condition JSON: %.*s, skipping",
-                        (int) val.len, val.ptr));
+        json_scanf(val.ptr, val.len, "{object:%Q,status:%Q}", &dd->object, &dd->status);
+        if (!mgos_homeassistant_automation_add_condition(a, CONDITION_STATUS, dd)) {
+          LOG(LL_WARN, ("Could not add condition JSON: %.*s, skipping", (int) val.len, val.ptr));
         } else {
           LOG(LL_DEBUG, ("Added condition JSON: %.*s", (int) val.len, val.ptr));
         }
@@ -152,33 +127,26 @@ bool mgos_homeassistant_automation_fromjson(
     }
     if (j_type) free(j_type);
   }
-  while ((h = json_next_elem(json, strlen(json), h, ".action", &idx, &val)) !=
-         NULL) {
+  while ((h = json_next_elem(json, strlen(json), h, ".action", &idx, &val)) != NULL) {
     LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
     char *j_type = NULL;
     json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
     if (!j_type || 0 == strcasecmp(j_type, "mqtt")) {
-      struct mgos_homeassistant_automation_data_action_mqtt *dd =
-          calloc(1, sizeof(*dd));
+      struct mgos_homeassistant_automation_data_action_mqtt *dd = calloc(1, sizeof(*dd));
       if (dd) {
-        json_scanf(val.ptr, val.len, "{topic:%Q,payload:%Q}", &dd->topic,
-                   &dd->payload);
+        json_scanf(val.ptr, val.len, "{topic:%Q,payload:%Q}", &dd->topic, &dd->payload);
         if (!mgos_homeassistant_automation_add_action(a, ACTION_MQTT, dd)) {
-          LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping",
-                        (int) val.len, val.ptr));
+          LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping", (int) val.len, val.ptr));
         } else {
           LOG(LL_DEBUG, ("Added action JSON: %.*s", (int) val.len, val.ptr));
         }
       }
     } else if (0 == strcasecmp(j_type, "command")) {
-      struct mgos_homeassistant_automation_data_action_command *dd =
-          calloc(1, sizeof(*dd));
+      struct mgos_homeassistant_automation_data_action_command *dd = calloc(1, sizeof(*dd));
       if (dd) {
-        json_scanf(val.ptr, val.len, "{object:%Q,payload:%Q}", &dd->object,
-                   &dd->payload);
+        json_scanf(val.ptr, val.len, "{object:%Q,payload:%Q}", &dd->object, &dd->payload);
         if (!mgos_homeassistant_automation_add_action(a, ACTION_COMMAND, dd)) {
-          LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping",
-                        (int) val.len, val.ptr));
+          LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping", (int) val.len, val.ptr));
         } else {
           LOG(LL_DEBUG, ("Added action JSON: %.*s", (int) val.len, val.ptr));
         }
@@ -192,19 +160,15 @@ bool mgos_homeassistant_automation_fromjson(
   return true;
 }
 
-bool mgos_homeassistant_automation_run(
-    struct mgos_homeassistant_automation *a,
-    enum mgos_homeassistant_automation_datatype trigger_type,
-    void *trigger_data) {
+bool mgos_homeassistant_automation_run(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype trigger_type,
+                                       void *trigger_data) {
   return false;
   (void) a;
   (void) trigger_type;
   (void) trigger_data;
 }
 
-struct mgos_homeassistant_automation_data *
-mgos_homeassistant_automation_data_create(
-    enum mgos_homeassistant_automation_datatype type, void *data) {
+struct mgos_homeassistant_automation_data *mgos_homeassistant_automation_data_create(enum mgos_homeassistant_automation_datatype type, void *data) {
   struct mgos_homeassistant_automation_data *d = calloc(1, sizeof(*d));
   if (!d) return NULL;
   LOG(LL_DEBUG, ("Creating automation data type %d", type));
@@ -213,8 +177,7 @@ mgos_homeassistant_automation_data_create(
   return d;
 }
 
-bool mgos_homeassistant_automation_data_destroy(
-    struct mgos_homeassistant_automation_data **d) {
+bool mgos_homeassistant_automation_data_destroy(struct mgos_homeassistant_automation_data **d) {
   if (!(*d)) return false;
   if (!(*d)->data) return true;
   LOG(LL_DEBUG, ("Destroying automation data type %d", (*d)->type));
@@ -243,14 +206,12 @@ bool mgos_homeassistant_automation_data_destroy(
       break;
     }
     default:
-      LOG(LL_WARN,
-          ("Automation data type %d unknown, skipping .. ", (*d)->type));
+      LOG(LL_WARN, ("Automation data type %d unknown, skipping .. ", (*d)->type));
   }
   return true;
 }
 
-bool mgos_homeassistant_automation_destroy(
-    struct mgos_homeassistant_automation **a) {
+bool mgos_homeassistant_automation_destroy(struct mgos_homeassistant_automation **a) {
   if (!(*a)) return false;
   LOG(LL_DEBUG, ("Destroying automation"));
 

@@ -23,8 +23,7 @@ static void si7021_timer(void *ud) {
   mgos_homeassistant_object_send_status(o);
 }
 
-static void si7021_stat_humidity(struct mgos_homeassistant_object *o,
-                                 struct json_out *json) {
+static void si7021_stat_humidity(struct mgos_homeassistant_object *o, struct json_out *json) {
   struct mgos_si7021 *sensor = NULL;
   float humidity = NAN;
 
@@ -37,8 +36,7 @@ static void si7021_stat_humidity(struct mgos_homeassistant_object *o,
   json_printf(json, "%.1f", humidity);
 }
 
-static void si7021_stat_temperature(struct mgos_homeassistant_object *o,
-                                    struct json_out *json) {
+static void si7021_stat_temperature(struct mgos_homeassistant_object *o, struct json_out *json) {
   struct mgos_si7021 *sensor = NULL;
   float temperature = NAN;
 
@@ -51,8 +49,7 @@ static void si7021_stat_temperature(struct mgos_homeassistant_object *o,
   json_printf(json, "%.2f", temperature);
 }
 
-bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha,
-                                        struct json_token val) {
+bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct json_token val) {
   int i2caddr = -1;
   int period = 60;
   bool ret = false;
@@ -64,8 +61,7 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha,
 
   if (!ha) goto exit;
 
-  json_scanf(val.ptr, val.len, "{i2caddr:%d,period:%d,name:%Q}", &i2caddr,
-             &period, &name);
+  json_scanf(val.ptr, val.len, "{i2caddr:%d,period:%d,name:%Q}", &i2caddr, &period, &name);
   user_data = mgos_si7021_create(mgos_i2c_get_global(), i2caddr);
   if (!user_data) {
     LOG(LL_ERROR, ("Could not create si7021 at i2caddr=%d", i2caddr));
@@ -73,29 +69,23 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha,
   }
 
   if (!name) {
-    mgos_homeassistant_object_generate_name(ha, "si7021_", object_name,
-                                            sizeof(object_name));
+    mgos_homeassistant_object_generate_name(ha, "si7021_", object_name, sizeof(object_name));
     nameptr = object_name;
   } else {
     nameptr = name;
   }
 
-  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL,
-                                    user_data);
+  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL, user_data);
   if (!o) {
     LOG(LL_ERROR, ("Could not add object %s to homeassistant", nameptr));
     goto exit;
   }
 
-  if (!mgos_homeassistant_object_class_add(o, "humidity",
-                                           "\"unit_of_measurement\":\"%\"",
-                                           si7021_stat_humidity)) {
+  if (!mgos_homeassistant_object_class_add(o, "humidity", "\"unit_of_measurement\":\"%\"", si7021_stat_humidity)) {
     LOG(LL_ERROR, ("Could not add 'humidity' class to object %s", nameptr));
     goto exit;
   }
-  if (!mgos_homeassistant_object_class_add(o, "temperature",
-                                           "\"unit_of_measurement\":\"°C\"",
-                                           si7021_stat_temperature)) {
+  if (!mgos_homeassistant_object_class_add(o, "temperature", "\"unit_of_measurement\":\"°C\"", si7021_stat_temperature)) {
     LOG(LL_ERROR, ("Could not add 'temperature' class to object %s", nameptr));
     goto exit;
   }

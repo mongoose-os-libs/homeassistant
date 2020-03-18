@@ -26,8 +26,7 @@ extern const char *mg_build_version;
 
 static struct mgos_homeassistant *s_homeassistant = NULL;
 
-static const char *ha_component_str(
-    enum mgos_homeassistant_component ha_component) {
+static const char *ha_component_str(enum mgos_homeassistant_component ha_component) {
   switch (ha_component) {
     case COMPONENT_ALARM_CONTROL_PANEL:
       return "alarm_control_panel";
@@ -80,8 +79,7 @@ static bool mgos_homeassistant_isvalid_name(const char *s) {
   return true;
 }
 
-static bool mgos_homeassistant_exists_objectname(struct mgos_homeassistant *ha,
-                                                 const char *s) {
+static bool mgos_homeassistant_exists_objectname(struct mgos_homeassistant *ha, const char *s) {
   struct mgos_homeassistant_object *o;
   if (!ha || !s) return false;
 
@@ -92,9 +90,7 @@ static bool mgos_homeassistant_exists_objectname(struct mgos_homeassistant *ha,
   return false;
 }
 
-bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha,
-                                             const char *prefix, char *name,
-                                             int namelen) {
+bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha, const char *prefix, char *name, int namelen) {
   int idx = 0;
   if (!ha || !name || !prefix || namelen == 0) return false;
   for (idx = 0; idx < 256; idx++) {
@@ -104,8 +100,7 @@ bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha,
   return false;
 }
 
-static bool mgos_homeassistant_exists_classname(
-    struct mgos_homeassistant_object *o, const char *s) {
+static bool mgos_homeassistant_exists_classname(struct mgos_homeassistant_object *o, const char *s) {
   struct mgos_homeassistant_object_class *c;
   if (!o || !s) return false;
 
@@ -116,13 +111,10 @@ static bool mgos_homeassistant_exists_classname(
   return false;
 }
 
-static void mgos_homeassistant_mqtt_connect(
-    struct mg_connection *nc, const char *client_id,
-    struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
+static void mgos_homeassistant_mqtt_connect(struct mg_connection *nc, const char *client_id, struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
   char payload[100];
   snprintf(payload, sizeof(payload), "offline");
-  LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect",
-                 mgos_sys_config_get_device_id(), payload));
+  LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect", mgos_sys_config_get_device_id(), payload));
   opts->will_topic = strdup(mgos_sys_config_get_device_id());
   opts->will_message = strdup(payload);
   opts->flags |= MG_MQTT_WILL_RETAIN;
@@ -130,8 +122,7 @@ static void mgos_homeassistant_mqtt_connect(
   (void) fn_arg;
 }
 
-static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev,
-                                       void *ev_data, void *user_data) {
+static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data, void *user_data) {
   switch (ev) {
     case MG_EV_MQTT_CONNACK: {
       mgos_mqtt_pub(mgos_sys_config_get_device_id(), "online", 6, 0, true);
@@ -154,36 +145,27 @@ static bool endswith(const char *str, size_t str_len, const char *suffix) {
   return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
 }
 
-static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc,
-                                       const char *topic, int topic_len,
-                                       const char *msg, int msg_len, void *ud) {
+static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *topic, int topic_len, const char *msg, int msg_len, void *ud) {
   struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
   if (!o) return;
 
   if (endswith(topic, (size_t) topic_len, "/stat")) {
-    LOG(LL_DEBUG, ("Received STAT object='%s' topic='%.*s' payload='%.*s'",
-                   o->object_name, topic_len, topic, msg_len, msg));
+    LOG(LL_DEBUG, ("Received STAT object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
     mgos_homeassistant_object_send_status(o);
   } else if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd_cb) {
-    LOG(LL_DEBUG, ("Received CMD object='%s' topic='%.*s' payload='%.*s'",
-                   o->object_name, topic_len, topic, msg_len, msg));
+    LOG(LL_DEBUG, ("Received CMD object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
     o->cmd_cb(o, msg, msg_len);
   } else if (endswith(topic, (size_t) topic_len, "/attr") && o->attr_cb) {
-    LOG(LL_DEBUG, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'",
-                   o->object_name, topic_len, topic, msg_len, msg));
+    LOG(LL_DEBUG, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
     o->attr_cb(o, msg, msg_len);
   }
   (void) nc;
 }
 
-static char *gen_configtopic(struct mbuf *m,
-                             const struct mgos_homeassistant_object *o,
-                             const struct mgos_homeassistant_object_class *c) {
-  mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(),
-              strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
+static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
+  mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(), strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
   mbuf_append(m, "/", 1);
-  mbuf_append(m, ha_component_str(o->component),
-              strlen(ha_component_str(o->component)));
+  mbuf_append(m, ha_component_str(o->component), strlen(ha_component_str(o->component)));
   mbuf_append(m, "/", 1);
   mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
   mbuf_append(m, "/", 1);
@@ -197,20 +179,16 @@ static char *gen_configtopic(struct mbuf *m,
   return m->buf;
 }
 
-static char *gen_topicprefix(struct mbuf *m,
-                             const struct mgos_homeassistant_object *o) {
+static char *gen_topicprefix(struct mbuf *m, const struct mgos_homeassistant_object *o) {
   mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
   mbuf_append(m, "/", 1);
-  mbuf_append(m, ha_component_str(o->component),
-              strlen(ha_component_str(o->component)));
+  mbuf_append(m, ha_component_str(o->component), strlen(ha_component_str(o->component)));
   mbuf_append(m, "/", 1);
   mbuf_append(m, o->object_name, strlen(o->object_name));
   return m->buf;
 }
 
-static char *gen_friendlyname(struct mbuf *m,
-                              const struct mgos_homeassistant_object *o,
-                              const struct mgos_homeassistant_object_class *c) {
+static char *gen_friendlyname(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
   mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
   mbuf_append(m, "_", 1);
   mbuf_append(m, o->object_name, strlen(o->object_name));
@@ -232,9 +210,7 @@ bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
     done++;
     if (mgos_homeassistant_object_send_config(o)) success++;
   }
-  LOG((done == success) ? LL_DEBUG : LL_WARN,
-      ("Sent %u configs (%u successfully) for node '%s'", done, success,
-       ha->node_name));
+  LOG((done == success) ? LL_DEBUG : LL_WARN, ("Sent %u configs (%u successfully) for node '%s'", done, success, ha->node_name));
   return (done == success);
 }
 
@@ -261,11 +237,9 @@ bool mgos_homeassistant_clear(struct mgos_homeassistant *ha) {
   return true;
 }
 
-struct mgos_homeassistant_object *mgos_homeassistant_object_add(
-    struct mgos_homeassistant *ha, const char *object_name,
-    enum mgos_homeassistant_component ha_component,
-    const char *json_config_additional_payload, ha_status_cb status_cb,
-    void *user_data) {
+struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_homeassistant *ha, const char *object_name,
+                                                                enum mgos_homeassistant_component ha_component,
+                                                                const char *json_config_additional_payload, ha_status_cb status_cb, void *user_data) {
   struct mgos_homeassistant_object *o = calloc(1, sizeof(*o));
 
   if (!o || !ha || !object_name) return NULL;
@@ -275,8 +249,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
     return NULL;
   }
   if (mgos_homeassistant_exists_objectname(ha, object_name)) {
-    LOG(LL_ERROR, ("Object name '%s' already exists in node '%s'", object_name,
-                   ha->node_name));
+    LOG(LL_ERROR, ("Object name '%s' already exists in node '%s'", object_name, ha->node_name));
     free(o);
     return NULL;
   }
@@ -284,8 +257,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
   o->ha = ha;
   o->component = ha_component;
   o->object_name = strdup(object_name);
-  if (json_config_additional_payload)
-    o->json_config_additional_payload = strdup(json_config_additional_payload);
+  if (json_config_additional_payload) o->json_config_additional_payload = strdup(json_config_additional_payload);
   o->user_data = user_data;
   o->status_cb = status_cb;
   mbuf_init(&o->status, 20);
@@ -301,27 +273,23 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(
   mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
   mbuf_free(&mbuf_topic);
 
-  LOG(LL_DEBUG,
-      ("Created object '%s' on node '%s'", o->object_name, o->ha->node_name));
+  LOG(LL_DEBUG, ("Created object '%s' on node '%s'", o->object_name, o->ha->node_name));
   return o;
 }
 
-bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o,
-                                          ha_cmd_cb cmd_cb) {
+bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd_cb) {
   if (!o) return false;
   o->cmd_cb = cmd_cb;
   return true;
 }
 
-bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o,
-                                           ha_attr_cb attr_cb) {
+bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr_cb) {
   if (!o) return false;
   o->attr_cb = attr_cb;
   return true;
 }
 
-struct mgos_homeassistant_object *mgos_homeassistant_object_get(
-    struct mgos_homeassistant *ha, const char *suffix) {
+struct mgos_homeassistant_object *mgos_homeassistant_object_get(struct mgos_homeassistant *ha, const char *suffix) {
   struct mgos_homeassistant_object *o = NULL;
   if (!ha || !suffix) return NULL;
 
@@ -364,14 +332,12 @@ bool mgos_homeassistant_object_get_status(struct mgos_homeassistant_object *o) {
   return true;
 }
 
-bool mgos_homeassistant_object_send_status(
-    struct mgos_homeassistant_object *o) {
+bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o) {
   struct mbuf mbuf_topic;
 
   if (!o) return false;
   if (!mgos_mqtt_global_is_connected()) {
-    LOG(LL_DEBUG,
-        ("MQTT not connected, skipping status for %s", o->object_name));
+    LOG(LL_DEBUG, ("MQTT not connected, skipping status for %s", o->object_name));
     return false;
   }
 
@@ -381,18 +347,15 @@ bool mgos_homeassistant_object_send_status(
 
   mgos_homeassistant_object_get_status(o);
 
-  LOG(LL_DEBUG, ("Status topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
-                 mbuf_topic.buf, (int) o->status.len, o->status.buf));
-  mgos_mqtt_pub((char *) mbuf_topic.buf, o->status.buf, o->status.len, 0,
-                false);
+  LOG(LL_DEBUG, ("Status topic='%.*s' payload='%.*s'", (int) mbuf_topic.len, mbuf_topic.buf, (int) o->status.len, o->status.buf));
+  mgos_mqtt_pub((char *) mbuf_topic.buf, o->status.buf, o->status.len, 0, false);
 
   if (mbuf_topic.size > 0) mbuf_free(&mbuf_topic);
   return true;
 }
 
-static bool mgos_homeassistant_object_send_config_mqtt(
-    struct mgos_homeassistant *ha, struct mgos_homeassistant_object *o,
-    struct mgos_homeassistant_object_class *c) {
+static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant *ha, struct mgos_homeassistant_object *o,
+                                                       struct mgos_homeassistant_object_class *c) {
   struct mbuf mbuf_topic;
   struct mbuf mbuf_topicprefix;
   struct mbuf mbuf_friendlyname;
@@ -411,42 +374,32 @@ static bool mgos_homeassistant_object_send_config_mqtt(
   gen_topicprefix(&mbuf_topicprefix, o);
   gen_friendlyname(&mbuf_friendlyname, o, c);
 
-  json_printf(&payload, "{\"~\":%.*Q,name:%.*Q", (int) mbuf_topicprefix.len,
-              mbuf_topicprefix.buf, (int) mbuf_friendlyname.len,
+  json_printf(&payload, "{\"~\":%.*Q,name:%.*Q", (int) mbuf_topicprefix.len, mbuf_topicprefix.buf, (int) mbuf_friendlyname.len,
               mbuf_friendlyname.buf);
-  json_printf(&payload, ",unique_id:\"%s:%.*s\"",
-              mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len,
-              mbuf_friendlyname.buf);
+  json_printf(&payload, ",unique_id:\"%s:%.*s\"", mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len, mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s\"", mgos_sys_config_get_device_id());
   json_printf(&payload, ",stat_t:%Q", "~");
   if (o->cmd_cb) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
   if (o->attr_cb) json_printf(&payload, ",attr_t:%Q", "~/attr");
   if (c) {
-    json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"",
-                c->class_name, "value_json.", c->class_name);
-    if (c->json_config_additional_payload)
-      json_printf(&payload, ",%s", c->json_config_additional_payload);
+    json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"", c->class_name, "value_json.", c->class_name);
+    if (c->json_config_additional_payload) json_printf(&payload, ",%s", c->json_config_additional_payload);
   }
-  if (o->json_config_additional_payload)
-    json_printf(&payload, ",%s", o->json_config_additional_payload);
+  if (o->json_config_additional_payload) json_printf(&payload, ",%s", o->json_config_additional_payload);
 
   json_printf(&payload, ",device:{");
   json_printf(&payload, "name:%Q", mgos_sys_config_get_device_id());
   json_printf(&payload, ",identifiers:[%Q]", o->ha->node_name);
-  json_printf(&payload, ",connections:[[mac,%Q]]",
-              mgos_sys_ro_vars_get_mac_address());
+  json_printf(&payload, ",connections:[[mac,%Q]]", mgos_sys_ro_vars_get_mac_address());
   json_printf(&payload, ",model:%Q", mgos_sys_ro_vars_get_app());
-  json_printf(&payload, ",sw_version:\"%s (%s)\"",
-              mgos_sys_ro_vars_get_fw_version(), mgos_sys_ro_vars_get_fw_id());
+  json_printf(&payload, ",sw_version:\"%s (%s)\"", mgos_sys_ro_vars_get_fw_version(), mgos_sys_ro_vars_get_fw_id());
   json_printf(&payload, ",manufacturer:%Q", "Mongoose OS");
   json_printf(&payload, "}");
 
   json_printf(&payload, "}");
 
-  LOG(LL_DEBUG, ("Config: topic='%.*s' payload='%.*s'", (int) mbuf_topic.len,
-                 mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
-  mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0,
-                true);
+  LOG(LL_DEBUG, ("Config: topic='%.*s' payload='%.*s'", (int) mbuf_topic.len, mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+  mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0, true);
 
   ret = true;
 exit:
@@ -457,8 +410,7 @@ exit:
   return ret;
 }
 
-bool mgos_homeassistant_object_send_config(
-    struct mgos_homeassistant_object *o) {
+bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) {
   struct mgos_homeassistant_object_class *c;
   int done = 0, success = 0;
   bool ret = false;
@@ -472,14 +424,11 @@ bool mgos_homeassistant_object_send_config(
 
   SLIST_FOREACH(c, &o->classes, entry) {
     done++;
-    if (mgos_homeassistant_object_send_config_mqtt(c->object->ha, c->object, c))
-      success++;
+    if (mgos_homeassistant_object_send_config_mqtt(c->object->ha, c->object, c)) success++;
   }
 
   ret = (done == success);
-  LOG(ret ? LL_DEBUG : LL_WARN,
-      ("Sent %u configs (%u successfully) for object '%s'", done, success,
-       o->object_name));
+  LOG(ret ? LL_DEBUG : LL_WARN, ("Sent %u configs (%u successfully) for object '%s'", done, success, o->object_name));
 
 exit:
   return ret;
@@ -488,8 +437,7 @@ exit:
 bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   if (!(*o) || !(*o)->ha) return false;
 
-  LOG(LL_DEBUG, ("Removing object '%s' from node '%s'", (*o)->object_name,
-                 (*o)->ha->node_name));
+  LOG(LL_DEBUG, ("Removing object '%s' from node '%s'", (*o)->object_name, (*o)->ha->node_name));
 
   while (!SLIST_EMPTY(&(*o)->classes)) {
     struct mgos_homeassistant_object_class *c;
@@ -498,8 +446,7 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   }
 
   if ((*o)->object_name) free((*o)->object_name);
-  if ((*o)->json_config_additional_payload)
-    free((*o)->json_config_additional_payload);
+  if ((*o)->json_config_additional_payload) free((*o)->json_config_additional_payload);
   if ((*o)->status.size > 0) mbuf_free(&(*o)->status);
 
   SLIST_REMOVE(&(*o)->ha->objects, (*o), mgos_homeassistant_object, entry);
@@ -509,9 +456,8 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   return true;
 }
 
-struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
-    struct mgos_homeassistant_object *o, const char *class_name,
-    const char *json_config_additional_payload, ha_status_cb status_cb) {
+struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(struct mgos_homeassistant_object *o, const char *class_name,
+                                                                            const char *json_config_additional_payload, ha_status_cb status_cb) {
   struct mgos_homeassistant_object_class *c = calloc(1, sizeof(*c));
 
   if (!c || !o || !class_name) return NULL;
@@ -521,26 +467,22 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(
     return NULL;
   }
   if (mgos_homeassistant_exists_classname(o, class_name)) {
-    LOG(LL_ERROR, ("Class name '%s' already exists in object '%s'", class_name,
-                   o->object_name));
+    LOG(LL_ERROR, ("Class name '%s' already exists in object '%s'", class_name, o->object_name));
     free(c);
     return NULL;
   }
 
   c->object = o;
   c->class_name = strdup(class_name);
-  if (json_config_additional_payload)
-    c->json_config_additional_payload = strdup(json_config_additional_payload);
+  if (json_config_additional_payload) c->json_config_additional_payload = strdup(json_config_additional_payload);
   c->status_cb = status_cb;
   SLIST_INSERT_HEAD(&o->classes, c, entry);
 
-  LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name,
-                 c->object->object_name));
+  LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name, c->object->object_name));
   return c;
 }
 
-struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_get(
-    struct mgos_homeassistant_object *o, const char *suffix) {
+struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_get(struct mgos_homeassistant_object *o, const char *suffix) {
   struct mgos_homeassistant_object_class *c = NULL;
   if (!o || !suffix) return NULL;
 
@@ -550,31 +492,25 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_get(
   return NULL;
 }
 
-bool mgos_homeassistant_object_class_send_config(
-    struct mgos_homeassistant_object_class *c) {
+bool mgos_homeassistant_object_class_send_config(struct mgos_homeassistant_object_class *c) {
   if (!c) return false;
   return mgos_homeassistant_object_send_config(c->object);
 }
 
-bool mgos_homeassistant_object_class_send_status(
-    struct mgos_homeassistant_object_class *c) {
+bool mgos_homeassistant_object_class_send_status(struct mgos_homeassistant_object_class *c) {
   if (!c) return false;
   return mgos_homeassistant_object_send_status(c->object);
 }
 
-bool mgos_homeassistant_object_class_remove(
-    struct mgos_homeassistant_object_class **c) {
+bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object_class **c) {
   if (!(*c) || !(*c)->object) return false;
 
-  LOG(LL_DEBUG, ("Removing class '%s' from object '%s'", (*c)->class_name,
-                 (*c)->object->object_name));
+  LOG(LL_DEBUG, ("Removing class '%s' from object '%s'", (*c)->class_name, (*c)->object->object_name));
 
   if ((*c)->class_name) free((*c)->class_name);
-  if ((*c)->json_config_additional_payload)
-    free((*c)->json_config_additional_payload);
+  if ((*c)->json_config_additional_payload) free((*c)->json_config_additional_payload);
 
-  SLIST_REMOVE(&(*c)->object->classes, (*c), mgos_homeassistant_object_class,
-               entry);
+  SLIST_REMOVE(&(*c)->object->classes, (*c), mgos_homeassistant_object_class, entry);
 
   free(*c);
   *c = NULL;
@@ -594,7 +530,6 @@ bool mgos_homeassistant_init(void) {
 
   mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, s_homeassistant);
   mgos_mqtt_set_connect_fn(mgos_homeassistant_mqtt_connect, NULL);
-  LOG(LL_DEBUG,
-      ("Created homeassistant node '%s'", s_homeassistant->node_name));
+  LOG(LL_DEBUG, ("Created homeassistant node '%s'", s_homeassistant->node_name));
   return true;
 }

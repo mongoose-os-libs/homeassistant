@@ -18,8 +18,6 @@
 
 #include "mgos_homeassistant_api.h"
 struct mgos_homeassistant *mgos_homeassistant_get_global(void);
-bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha,
-                                 const char *filename);
-bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha,
-                                 const char *json);
+bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename);
+bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json);
 bool mgos_homeassistant_clear(struct mgos_homeassistant *ha);

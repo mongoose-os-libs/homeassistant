@@ -3,4 +3,4 @@ AllowShortFunctionsOnASingleLine: false
 SpaceAfterCStyleCast: true
 PointerBindsToType: false
 DerivePointerBinding: false
-# ColumnLimit: 150
+ColumnLimit: 150
