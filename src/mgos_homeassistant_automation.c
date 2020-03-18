@@ -63,7 +63,7 @@ bool mgos_homeassistant_automation_add_trigger(
       mgos_homeassistant_automation_data_create(type, data);
   if (!d) return false;
   SLIST_INSERT_HEAD(&a->triggers, d, entry);
-  LOG(LL_DEBUG, ("Inserted automation trigger data type %d", type);
+  LOG(LL_DEBUG, ("Inserted automation trigger data type %d", type));
   return true;
 }
 
@@ -75,7 +75,7 @@ bool mgos_homeassistant_automation_add_condition(
       mgos_homeassistant_automation_data_create(type, data);
   if (!d) return false;
   SLIST_INSERT_HEAD(&a->conditions, d, entry);
-  LOG(LL_DEBUG, ("Inserted automation condition data type %d", type);
+  LOG(LL_DEBUG, ("Inserted automation condition data type %d", type));
   return true;
 }
 
@@ -87,7 +87,7 @@ bool mgos_homeassistant_automation_add_action(
       mgos_homeassistant_automation_data_create(type, data);
   if (!d) return false;
   SLIST_INSERT_HEAD(&a->actions, d, entry);
-  LOG(LL_DEBUG, ("Inserted automation action data type %d", type);
+  LOG(LL_DEBUG, ("Inserted automation action data type %d", type));
   return true;
 }
 
