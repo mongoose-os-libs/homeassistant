@@ -23,41 +23,40 @@
 #include "mgos_homeassistant_api.h"
 #include "mgos_mqtt.h"
 
-static bool trigger_status(void *trigger_data, void *data, void *user_data) {
-  struct mgos_homeassistant_automation_data_status *td = (struct mgos_homeassistant_automation_data_status *) trigger_data;
-  struct mgos_homeassistant_automation_data_status *d = (struct mgos_homeassistant_automation_data_status *) data;
-  struct mgos_homeassistant *ha;
+static bool trigger_status(struct mgos_homeassistant *ha, struct mgos_homeassistant_automation_data_status *trigger_data,
+                           struct mgos_homeassistant_automation_data_status *data) {
   struct mgos_homeassistant_object *o;
   int ret;
   char *p;
 
-  ha = (struct mgos_homeassistant *) user_data;
-  if (!ha) return false;
+  if (!ha || !data || !trigger_data) return false;
 
-  ret = strcasecmp(td->object, d->object);
-  LOG(LL_DEBUG, ("Trigger: trigger('%s') %s= data('%s')", td->object, ret == 0 ? "" : "!", d->object));
+  ret = strcasecmp(trigger_data->object, data->object);
+  LOG(LL_DEBUG, ("Trigger: trigger('%s') %s= data('%s')", trigger_data->object, ret == 0 ? "" : "!", data->object));
   if (0 != ret) return false;
 
-  if (!(o = mgos_homeassistant_object_get(ha, td->object))) return false;
+  if (!(o = mgos_homeassistant_object_get(ha, trigger_data->object))) {
+    LOG(LL_ERROR, ("Trigger: Object '%s' not found", trigger_data->object));
+    return false;
+  }
 
-  p = strstr(o->status.buf, d->status);
-  LOG(LL_DEBUG, ("Trigger: Object('%s').status='%.*s' %s= data('%s')", o->object_name, (int) o->status.len, o->status.buf, p ? "" : "!", d->status));
+  p = strstr(o->status.buf, data->status);
+  LOG(LL_DEBUG,
+      ("Trigger: Object('%s').status='%.*s' %s= data('%s')", o->object_name, (int) o->status.len, o->status.buf, p ? "" : "!", data->status));
 
   return p != NULL;
 }
 
-static bool condition_status(void *data, void *user_data) {
-  struct mgos_homeassistant_automation_data_status *d = (struct mgos_homeassistant_automation_data_status *) data;
-  struct mgos_homeassistant *ha;
+static bool condition_status(struct mgos_homeassistant *ha, struct mgos_homeassistant_automation_data_status *data) {
   struct mgos_homeassistant_object *o;
   char *p;
 
-  if (!(ha = (struct mgos_homeassistant *) user_data)) return true;
-  if (!(o = mgos_homeassistant_object_get(ha, d->object))) return true;
+  if (!ha || !data) return true;
+  if (!(o = mgos_homeassistant_object_get(ha, data->object))) return true;
 
-  p = strstr(o->status.buf, d->status);
+  p = strstr(o->status.buf, data->status);
   LOG(LL_DEBUG,
-      ("Condition: Object('%s').status='%.*s' %s= data('%s')", o->object_name, (int) o->status.len, o->status.buf, p ? "" : "!", d->status));
+      ("Condition: Object('%s').status='%.*s' %s= data('%s')", o->object_name, (int) o->status.len, o->status.buf, p ? "" : "!", data->status));
 
   return p != NULL;
 }
@@ -70,19 +69,21 @@ static void action_mqtt(struct mgos_homeassistant_automation_data_action_mqtt *d
   return;
 }
 
-static bool action_command(void *data, void *user_data) {
-  struct mgos_homeassistant_automation_data_action_command *d = (struct mgos_homeassistant_automation_data_action_command *) data;
-  struct mgos_homeassistant *ha;
+static bool action_command(struct mgos_homeassistant *ha, struct mgos_homeassistant_automation_data_action_command *data) {
   struct mgos_homeassistant_object *o;
-  if (!d) return false;
+  if (!ha || !data) return false;
+  if (!(o = mgos_homeassistant_object_get(ha, data->object))) {
+    LOG(LL_ERROR, ("Action: Object '%s' not found", data->object));
+    return false;
+  }
 
-  if (!(ha = (struct mgos_homeassistant *) user_data)) return false;
-  if (!(o = mgos_homeassistant_object_get(ha, d->object))) return false;
+  if (!o->cmd_cb) {
+    LOG(LL_ERROR, ("Action: Object '%s' has no command handler", data->object));
+    return false;
+  }
 
-  if (!o->cmd_cb) return false;
-
-  LOG(LL_INFO, ("Action: Command object='%s' payload='%s'", d->object, d->payload));
-  o->cmd_cb(o, d->payload, strlen(d->payload));
+  LOG(LL_INFO, ("Action: Command object='%s' payload='%s'", data->object, data->payload));
+  o->cmd_cb(o, data->payload, strlen(data->payload));
 
   return true;
 }
@@ -206,7 +207,7 @@ static bool mgos_homeassistant_automation_run_triggers(struct mgos_homeassistant
     if (trigger_type != d->type) continue;
     switch (d->type) {
       case TRIGGER_STATUS:
-        if (trigger_status(trigger_data, d->data, user_data)) return true;
+        if (trigger_status(user_data, trigger_data, d->data)) return true;
       default:
         break;
     }
@@ -220,7 +221,7 @@ static bool mgos_homeassistant_automation_run_conditions(struct mgos_homeassista
   SLIST_FOREACH(d, &a->conditions, entry) {
     switch (d->type) {
       case CONDITION_STATUS:
-        if (!condition_status(d->data, user_data)) return false;
+        if (!condition_status(user_data, d->data)) return false;
       default:
         break;
     }
@@ -234,10 +235,10 @@ static bool mgos_homeassistant_automation_run_actions(struct mgos_homeassistant_
   SLIST_FOREACH(d, &a->actions, entry) {
     switch (d->type) {
       case ACTION_MQTT:
-        action_mqtt((struct mgos_homeassistant_automation_data_action_mqtt *) d->data);
+        action_mqtt(d->data);
         break;
       case ACTION_COMMAND:
-        action_command(d->data, user_data);
+        action_command(user_data, d->data);
         break;
       default:
         break;
