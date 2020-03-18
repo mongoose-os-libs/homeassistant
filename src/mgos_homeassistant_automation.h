@@ -48,6 +48,8 @@ struct mgos_homeassistant_automation {
   mgos_homeassistant_automation_action_cb action_cb;
 
   void *user_data;
+
+  SLIST_ENTRY(mgos_homeassistant_automation) entry;
 };
 
 struct mgos_homeassistant_automation_data {
