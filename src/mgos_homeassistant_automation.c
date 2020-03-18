@@ -32,19 +32,19 @@ struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void 
   return a;
 }
 
-bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_cb cb) {
+bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_trigger_cb cb) {
   if (!a) return false;
   a->trigger_cb = cb;
   return true;
 }
 
-bool mgos_homeassistant_automation_set_condition_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_cb cb) {
+bool mgos_homeassistant_automation_set_condition_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_condition_cb cb) {
   if (!a) return false;
   a->condition_cb = cb;
   return true;
 }
 
-bool mgos_homeassistant_automation_set_action_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_cb cb) {
+bool mgos_homeassistant_automation_set_action_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_action_cb cb) {
   if (!a) return false;
   a->action_cb = cb;
   return true;
@@ -160,12 +160,39 @@ bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation
   return true;
 }
 
+static bool mgos_homeassistant_automation_run_triggers(struct mgos_homeassistant_automation *a,
+                                                       enum mgos_homeassistant_automation_datatype trigger_type, void *trigger_data) {
+  struct mgos_homeassistant_automation_data *d;
+  if (!a || !trigger_data || !a->trigger_cb) return false;
+  SLIST_FOREACH(d, &a->triggers, entry) {
+    if ((trigger_type == d->type) && a->trigger_cb(d->type, trigger_data, d->data)) return true;
+  }
+  return false;
+}
+
+static bool mgos_homeassistant_automation_run_conditions(struct mgos_homeassistant_automation *a) {
+  struct mgos_homeassistant_automation_data *d;
+  if (!a || !a->condition_cb) return false;
+  SLIST_FOREACH(d, &a->conditions, entry) {
+    if (!a->condition_cb(d->type, d->data)) return false;
+  }
+  return true;
+}
+
+static bool mgos_homeassistant_automation_run_actions(struct mgos_homeassistant_automation *a) {
+  struct mgos_homeassistant_automation_data *d;
+  if (!a || !a->action_cb) return false;
+  SLIST_FOREACH(d, &a->conditions, entry) {
+    a->action_cb(d->type, d->data);
+  }
+  return false;
+}
+
 bool mgos_homeassistant_automation_run(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype trigger_type,
                                        void *trigger_data) {
-  return false;
-  (void) a;
-  (void) trigger_type;
-  (void) trigger_data;
+  if (!mgos_homeassistant_automation_run_triggers(a, trigger_type, trigger_data)) return false;
+  if (!mgos_homeassistant_automation_run_conditions(a)) return false;
+  return mgos_homeassistant_automation_run_actions(a);
 }
 
 struct mgos_homeassistant_automation_data *mgos_homeassistant_automation_data_create(enum mgos_homeassistant_automation_datatype type, void *data) {
