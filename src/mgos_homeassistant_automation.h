@@ -19,6 +19,7 @@
 
 #include "common/queue.h"
 #include "frozen/frozen.h"
+#include "mongoose.h"
 
 struct mgos_homeassistant_automation;
 struct mgos_homeassistant_automation_data;
@@ -61,17 +62,17 @@ struct mgos_homeassistant_automation_data {
 
 struct mgos_homeassistant_automation_data_status {
   char *object;
-  char *status;
+  struct mbuf *status;
 };
 
 struct mgos_homeassistant_automation_data_action_mqtt {
   char *topic;
-  char *payload;
+  struct mbuf *payload;
 };
 
 struct mgos_homeassistant_automation_data_action_command {
   char *object;
-  char *payload;
+  struct mbuf *payload;
 };
 
 struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(struct json_token val);
@@ -99,4 +100,5 @@ bool mgos_homeassistant_automation_data_destroy(struct mgos_homeassistant_automa
 //
 bool mgos_homeassistant_automation_run(struct mgos_homeassistant_automation *e, enum mgos_homeassistant_automation_datatype trigger_type,
                                        void *trigger_data, void *user_data);
+
 bool mgos_homeassistant_automation_destroy(struct mgos_homeassistant_automation **e);

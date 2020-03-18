@@ -22,18 +22,23 @@
 #include "mgos_homeassistant_gpio.h"
 #include "mgos_homeassistant_si7021.h"
 
-bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename) {
-  return mgos_homeassistant_fromjson(ha, json_fread(filename));
-}
-
-bool mgos_homeassistant_automation(struct mgos_homeassistant *ha, enum mgos_homeassistant_automation_datatype trigger_type, void *trigger_data) {
+bool mgos_homeassistant_automation_run_status(struct mgos_homeassistant_object *o) {
   struct mgos_homeassistant_automation *a;
-  if (!ha) return false;
+  struct mgos_homeassistant_automation_data_status d;
+  if (!o || !o->ha) return false;
 
-  SLIST_FOREACH(a, &ha->automations, entry) {
-    mgos_homeassistant_automation_run(a, trigger_type, trigger_data, ha);
+  d.object = o->object_name;
+  d.status = &o->status;
+  LOG(LL_DEBUG, ("Running automations for trigger object=%s status=%.*s", d.object, (int) d.status->len, d.status->buf));
+
+  SLIST_FOREACH(a, &o->ha->automations, entry) {
+    mgos_homeassistant_automation_run(a, TRIGGER_STATUS, &d, o->ha);
   }
   return true;
+}
+
+bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename) {
+  return mgos_homeassistant_fromjson(ha, json_fread(filename));
 }
 
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json) {

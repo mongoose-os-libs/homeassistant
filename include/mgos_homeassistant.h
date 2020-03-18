@@ -21,5 +21,7 @@
 struct mgos_homeassistant *mgos_homeassistant_get_global(void);
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename);
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json);
-bool mgos_homeassistant_automation(struct mgos_homeassistant *ha, enum mgos_homeassistant_automation_datatype trigger_type, void *trigger_data);
 bool mgos_homeassistant_clear(struct mgos_homeassistant *ha);
+
+// Run all TRIGGER_STATUS automations
+bool mgos_homeassistant_automation_run_status(struct mgos_homeassistant_object *o);
