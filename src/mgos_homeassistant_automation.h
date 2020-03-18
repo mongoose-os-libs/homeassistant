@@ -18,6 +18,7 @@
 #include <stdbool.h>
 
 #include "common/queue.h"
+#include "frozen/frozen.h"
 
 struct mgos_homeassistant_automation;
 struct mgos_homeassistant_automation_data;
@@ -74,7 +75,7 @@ struct mgos_homeassistant_automation_data_action_command {
   char *payload;
 };
 
-struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void *user_data);
+struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void *user_data, struct json_token val);
 bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *e, mgos_homeassistant_automation_trigger_cb trigger_cb);
 bool mgos_homeassistant_automation_set_condition_cb(struct mgos_homeassistant_automation *e, mgos_homeassistant_automation_condition_cb condition_cb);
 bool mgos_homeassistant_automation_set_action_cb(struct mgos_homeassistant_automation *e, mgos_homeassistant_automation_action_cb action_cb);
@@ -86,9 +87,6 @@ bool mgos_homeassistant_automation_add_action(struct mgos_homeassistant_automati
 
 struct mgos_homeassistant_automation_data *mgos_homeassistant_automation_data_create(enum mgos_homeassistant_automation_datatype type, void *data);
 bool mgos_homeassistant_automation_data_destroy(struct mgos_homeassistant_automation_data **d);
-
-bool mgos_homeassistant_automation_fromfile(struct mgos_homeassistant_automation *e, const char *filename);
-bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation *e, const char *json);
 
 // Note: automation_type is the automation that should trigger (MUST be
 // TRIGGER_*) and its accompanying data. Usually, this will be a struct

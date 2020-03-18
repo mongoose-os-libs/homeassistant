@@ -20,18 +20,6 @@
 
 #include "mgos.h"
 
-struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void *user_data) {
-  struct mgos_homeassistant_automation *a = calloc(1, sizeof(*a));
-  if (!a) return NULL;
-
-  a->user_data = user_data;
-  SLIST_INIT(&a->triggers);
-  SLIST_INIT(&a->conditions);
-  SLIST_INIT(&a->actions);
-  LOG(LL_DEBUG, ("Created automation"));
-  return a;
-}
-
 bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *a, mgos_homeassistant_automation_trigger_cb cb) {
   if (!a) return false;
   a->trigger_cb = cb;
@@ -79,18 +67,20 @@ bool mgos_homeassistant_automation_add_action(struct mgos_homeassistant_automati
   return true;
 }
 
-bool mgos_homeassistant_automation_fromfile(struct mgos_homeassistant_automation *a, const char *filename) {
-  return mgos_homeassistant_automation_fromjson(a, json_fread(filename));
-}
-
-bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation *a, const char *json) {
+struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void *user_data, struct json_token json) {
   struct json_token val;
+  struct mgos_homeassistant_automation *a = calloc(1, sizeof(*a));
   void *h = NULL;
   int idx;
 
-  if (!a || !json) return false;
-  while ((h = json_next_elem(json, strlen(json), h, ".trigger", &idx, &val)) != NULL) {
-    LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
+  if (!a) return NULL;
+
+  a->user_data = user_data;
+  SLIST_INIT(&a->triggers);
+  SLIST_INIT(&a->conditions);
+  SLIST_INIT(&a->actions);
+
+  while ((h = json_next_elem(json.ptr, json.len, h, ".trigger", &idx, &val)) != NULL) {
     char *j_type = NULL;
     json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
     if (!j_type || 0 == strcasecmp(j_type, "status")) {
@@ -108,8 +98,7 @@ bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation
     }
     if (j_type) free(j_type);
   }
-  while ((h = json_next_elem(json, strlen(json), h, ".condition", &idx, &val)) != NULL) {
-    LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
+  while ((h = json_next_elem(json.ptr, json.len, h, ".condition", &idx, &val)) != NULL) {
     char *j_type = NULL;
     json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
     if (!j_type || 0 == strcasecmp(j_type, "status")) {
@@ -127,8 +116,7 @@ bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation
     }
     if (j_type) free(j_type);
   }
-  while ((h = json_next_elem(json, strlen(json), h, ".action", &idx, &val)) != NULL) {
-    LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
+  while ((h = json_next_elem(json.ptr, json.len, h, ".action", &idx, &val)) != NULL) {
     char *j_type = NULL;
     json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
     if (!j_type || 0 == strcasecmp(j_type, "mqtt")) {
@@ -157,7 +145,8 @@ bool mgos_homeassistant_automation_fromjson(struct mgos_homeassistant_automation
     if (j_type) free(j_type);
   }
 
-  return true;
+  LOG(LL_DEBUG, ("Created automation"));
+  return a;
 }
 
 static bool mgos_homeassistant_automation_run_triggers(struct mgos_homeassistant_automation *a,
