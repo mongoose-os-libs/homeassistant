@@ -111,6 +111,17 @@ static bool mgos_homeassistant_exists_classname(struct mgos_homeassistant_object
   return false;
 }
 
+static bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, void *ev_data) {
+  struct mgos_homeassistant_handler *h;
+  if (!ha) return false;
+
+  LOG(LL_DEBUG, ("Node '%s' event: %d", ha->node_name, ev));
+  SLIST_FOREACH(h, &ha->handlers, entry) {
+    h->ev_handler(ha, ev, ev_data, h->user_data);
+  }
+  return true;
+}
+
 static void mgos_homeassistant_mqtt_connect(struct mg_connection *nc, const char *client_id, struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
   char payload[100];
   snprintf(payload, sizeof(payload), "offline");
@@ -155,9 +166,11 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *top
   } else if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd_cb) {
     LOG(LL_DEBUG, ("Received CMD object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
     o->cmd_cb(o, msg, msg_len);
+    mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_CMD, o);
   } else if (endswith(topic, (size_t) topic_len, "/attr") && o->attr_cb) {
     LOG(LL_DEBUG, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
     o->attr_cb(o, msg, msg_len);
+    mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_ATTR, o);
   }
   (void) nc;
 }
@@ -233,6 +246,7 @@ bool mgos_homeassistant_clear(struct mgos_homeassistant *ha) {
     o = SLIST_FIRST(&ha->objects);
     mgos_homeassistant_object_remove(&o);
   }
+  mgos_homeassistant_call_handlers(ha, MGOS_HOMEASSISTANT_EV_CLEAR, NULL);
 
   return true;
 }
@@ -273,6 +287,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_home
   mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
   mbuf_free(&mbuf_topic);
 
+  mgos_homeassistant_call_handlers(ha, MGOS_HOMEASSISTANT_EV_OBJECT_ADD, o);
   LOG(LL_DEBUG, ("Created object '%s' on node '%s'", o->object_name, o->ha->node_name));
   return o;
 }
@@ -350,6 +365,7 @@ bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o) 
   LOG(LL_DEBUG, ("Status topic='%.*s' payload='%.*s'", (int) mbuf_topic.len, mbuf_topic.buf, (int) o->status.len, o->status.buf));
   mgos_mqtt_pub((char *) mbuf_topic.buf, o->status.buf, o->status.len, 0, false);
 
+  mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_STATUS, o);
   if (mbuf_topic.size > 0) mbuf_free(&mbuf_topic);
   return true;
 }
@@ -438,6 +454,7 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   if (!(*o) || !(*o)->ha) return false;
 
   LOG(LL_DEBUG, ("Removing object '%s' from node '%s'", (*o)->object_name, (*o)->ha->node_name));
+  mgos_homeassistant_call_handlers((*o)->ha, MGOS_HOMEASSISTANT_EV_OBJECT_REMOVE, *o);
 
   while (!SLIST_EMPTY(&(*o)->classes)) {
     struct mgos_homeassistant_object_class *c;
@@ -478,6 +495,7 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(stru
   c->status_cb = status_cb;
   SLIST_INSERT_HEAD(&o->classes, c, entry);
 
+  mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_CLASS_ADD, c);
   LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name, c->object->object_name));
   return c;
 }
@@ -506,6 +524,7 @@ bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object_cla
   if (!(*c) || !(*c)->object) return false;
 
   LOG(LL_DEBUG, ("Removing class '%s' from object '%s'", (*c)->class_name, (*c)->object->object_name));
+  mgos_homeassistant_call_handlers((*c)->object->ha, MGOS_HOMEASSISTANT_EV_CLASS_REMOVE, c);
 
   if ((*c)->class_name) free((*c)->class_name);
   if ((*c)->json_config_additional_payload) free((*c)->json_config_additional_payload);
@@ -521,12 +540,27 @@ struct mgos_homeassistant *mgos_homeassistant_get_global() {
   return s_homeassistant;
 }
 
+bool mgos_homeassistant_add_handler(struct mgos_homeassistant *ha, ha_ev_handler ev_handler, void *user_data) {
+  struct mgos_homeassistant_handler *h;
+
+  if (!ha || !ev_handler) return false;
+  if (!(h = calloc(1, sizeof(*h)))) return false;
+  h->ev_handler = ev_handler;
+  h->user_data = user_data;
+
+  SLIST_INSERT_HEAD(&ha->handlers, h, entry);
+  mgos_homeassistant_call_handlers(ha, MGOS_HOMEASSISTANT_EV_ADD_HANDLER, NULL);
+  return true;
+}
+
 bool mgos_homeassistant_init(void) {
   s_homeassistant = calloc(1, sizeof(struct mgos_homeassistant));
   if (!s_homeassistant) return false;
 
   s_homeassistant->node_name = strdup(mgos_sys_config_get_device_id());
   SLIST_INIT(&s_homeassistant->objects);
+  SLIST_INIT(&s_homeassistant->automations);
+  SLIST_INIT(&s_homeassistant->handlers);
 
   mgos_mqtt_add_global_handler(mgos_homeassistant_mqtt_ev, s_homeassistant);
   mgos_mqtt_set_connect_fn(mgos_homeassistant_mqtt_connect, NULL);

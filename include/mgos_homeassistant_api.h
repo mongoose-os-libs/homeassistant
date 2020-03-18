@@ -23,6 +23,7 @@
 #include "frozen/frozen.h"
 
 struct mgos_homeassistant;
+struct mgos_homeassistant_handler;
 struct mgos_homeassistant_object;
 struct mgos_homeassistant_object_class;
 
@@ -41,14 +42,28 @@ enum mgos_homeassistant_component {
   COMPONENT_VACUUM
 };
 
+// Events for ha->ev_handler
+#define MGOS_HOMEASSISTANT_EV_ADD_HANDLER 10    // ev_data: NULL
+#define MGOS_HOMEASSISTANT_EV_CLEAR 11          // ev_data: NULL
+#define MGOS_HOMEASSISTANT_EV_OBJECT_ADD 20     // ev_data: struct mgos_homeassistant_object *
+#define MGOS_HOMEASSISTANT_EV_OBJECT_STATUS 21  // ev_data: struct mgos_homeassistant_object *
+#define MGOS_HOMEASSISTANT_EV_OBJECT_CMD 22     // ev_data: struct mgos_homeassistant_object *
+#define MGOS_HOMEASSISTANT_EV_OBJECT_ATTR 23    // ev_data: struct mgos_homeassistant_object *
+#define MGOS_HOMEASSISTANT_EV_OBJECT_REMOVE 24  // ev_data: struct mgos_homeassistant_object *
+#define MGOS_HOMEASSISTANT_EV_CLASS_ADD 30      // ev_data: struct mgos_homeassistant_object_class *
+#define MGOS_HOMEASSISTANT_EV_CLASS_REMOVE 31   // ev_data: struct mgos_homeassistant_object_class *
+
 typedef void (*ha_status_cb)(struct mgos_homeassistant_object *o, struct json_out *json);
 typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *o, const char *payload, const int payload_len);
 typedef void (*ha_attr_cb)(struct mgos_homeassistant_object *o, const char *payload, const int payload_len);
+typedef void (*ha_ev_handler)(struct mgos_homeassistant *ha, const int ev, const void *ev_data, void *user_data);
 
 struct mgos_homeassistant {
   char *node_name;
+
   SLIST_HEAD(objects, mgos_homeassistant_object) objects;
   SLIST_HEAD(automations, mgos_homeassistant_automation) automations;
+  SLIST_HEAD(handlers, mgos_homeassistant_handler) handlers;
 };
 
 struct mgos_homeassistant_object {
@@ -80,8 +95,16 @@ struct mgos_homeassistant_object_class {
   SLIST_ENTRY(mgos_homeassistant_object_class) entry;
 };
 
+struct mgos_homeassistant_handler {
+  ha_ev_handler ev_handler;
+  void *user_data;
+
+  SLIST_ENTRY(mgos_homeassistant_handler) entry;
+};
+
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha);
+bool mgos_homeassistant_add_handler(struct mgos_homeassistant *ha, ha_ev_handler ev_handler, void *user_data);
 
 struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_homeassistant *ha, const char *object_name,
                                                                 enum mgos_homeassistant_component ha_component,
