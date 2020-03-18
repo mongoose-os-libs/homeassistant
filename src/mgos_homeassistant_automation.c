@@ -16,6 +16,8 @@
 
 #include "mgos_homeassistant_automation.h"
 
+#include <strings.h>
+
 #include "mgos.h"
 
 struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(
@@ -93,16 +95,101 @@ bool mgos_homeassistant_automation_add_action(
 
 bool mgos_homeassistant_automation_fromfile(
     struct mgos_homeassistant_automation *a, const char *filename) {
-  return false;
-  (void) a;
-  (void) filename;
+  return mgos_homeassistant_automation_fromjson(a, json_fread(filename));
 }
 
 bool mgos_homeassistant_automation_fromjson(
     struct mgos_homeassistant_automation *a, const char *json) {
-  return false;
-  (void) a;
-  (void) json;
+  struct json_token val;
+  void *h = NULL;
+  int idx;
+
+  if (!a || !json) return false;
+  while ((h = json_next_elem(json, strlen(json), h, ".trigger", &idx, &val)) !=
+         NULL) {
+    LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
+    char *j_type = NULL;
+    json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
+    if (!j_type || 0 == strcasecmp(j_type, "status")) {
+      struct mgos_homeassistant_automation_data_status *dd =
+          calloc(1, sizeof(*dd));
+      if (dd) {
+        json_scanf(val.ptr, val.len, "{object:%Q,status:%Q}", &dd->object,
+                   &dd->status);
+        if (!mgos_homeassistant_automation_add_trigger(a, TRIGGER_STATUS, dd)) {
+          LOG(LL_WARN, ("Could not add trigger JSON: %.*s, skipping",
+                        (int) val.len, val.ptr));
+        } else {
+          LOG(LL_DEBUG, ("Added trigger JSON: %.*s", (int) val.len, val.ptr));
+        }
+      }
+    } else {
+      LOG(LL_WARN, ("Unknown data type '%s', skipping ..", j_type));
+    }
+    if (j_type) free(j_type);
+  }
+  while ((h = json_next_elem(json, strlen(json), h, ".condition", &idx,
+                             &val)) != NULL) {
+    LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
+    char *j_type = NULL;
+    json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
+    if (!j_type || 0 == strcasecmp(j_type, "status")) {
+      struct mgos_homeassistant_automation_data_status *dd =
+          calloc(1, sizeof(*dd));
+      if (dd) {
+        json_scanf(val.ptr, val.len, "{object:%Q,status:%Q}", &dd->object,
+                   &dd->status);
+        if (!mgos_homeassistant_automation_add_condition(a, CONDITION_STATUS,
+                                                         dd)) {
+          LOG(LL_WARN, ("Could not add condition JSON: %.*s, skipping",
+                        (int) val.len, val.ptr));
+        } else {
+          LOG(LL_DEBUG, ("Added condition JSON: %.*s", (int) val.len, val.ptr));
+        }
+      }
+    } else {
+      LOG(LL_WARN, ("Unknown data type '%s', skipping ..", j_type));
+    }
+    if (j_type) free(j_type);
+  }
+  while ((h = json_next_elem(json, strlen(json), h, ".action", &idx, &val)) !=
+         NULL) {
+    LOG(LL_DEBUG, ("idx[%d] '%.*s'", idx, (int) val.len, val.ptr));
+    char *j_type = NULL;
+    json_scanf(val.ptr, val.len, "{type:%Q}", &j_type);
+    if (!j_type || 0 == strcasecmp(j_type, "mqtt")) {
+      struct mgos_homeassistant_automation_data_action_mqtt *dd =
+          calloc(1, sizeof(*dd));
+      if (dd) {
+        json_scanf(val.ptr, val.len, "{topic:%Q,payload:%Q}", &dd->topic,
+                   &dd->payload);
+        if (!mgos_homeassistant_automation_add_action(a, ACTION_MQTT, dd)) {
+          LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping",
+                        (int) val.len, val.ptr));
+        } else {
+          LOG(LL_DEBUG, ("Added action JSON: %.*s", (int) val.len, val.ptr));
+        }
+      }
+    } else if (0 == strcasecmp(j_type, "command")) {
+      struct mgos_homeassistant_automation_data_action_command *dd =
+          calloc(1, sizeof(*dd));
+      if (dd) {
+        json_scanf(val.ptr, val.len, "{object:%Q,payload:%Q}", &dd->object,
+                   &dd->payload);
+        if (!mgos_homeassistant_automation_add_action(a, ACTION_COMMAND, dd)) {
+          LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping",
+                        (int) val.len, val.ptr));
+        } else {
+          LOG(LL_DEBUG, ("Added action JSON: %.*s", (int) val.len, val.ptr));
+        }
+      }
+    } else {
+      LOG(LL_WARN, ("Unknown data type '%s', skipping ..", j_type));
+    }
+    if (j_type) free(j_type);
+  }
+
+  return true;
 }
 
 bool mgos_homeassistant_automation_run(
