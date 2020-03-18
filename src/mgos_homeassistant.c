@@ -17,6 +17,7 @@
 #include "mgos_homeassistant.h"
 
 #include "mgos.h"
+#include "mgos_homeassistant_automation.h"
 #include "mgos_homeassistant_barometer.h"
 #include "mgos_homeassistant_gpio.h"
 #include "mgos_homeassistant_si7021.h"
@@ -74,6 +75,17 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json
     LOG(LL_ERROR, ("provider.barometer config found: Add barometer to mos.yml, "
                    "skipping .. "));
 #endif
+  }
+
+  // Read automations
+  while ((h = json_next_elem(json, strlen(json), h, ".automation", &idx, &val)) != NULL) {
+    struct mgos_homeassistant_automation *a;
+
+    if (!(a = mgos_homeassistant_automation_create(ha, val))) {
+      LOG(LL_WARN, ("Failed to add automation, index %d, json follows:%.*s", idx, (int) val.len, val.ptr));
+      continue;
+    }
+    SLIST_INSERT_HEAD(&ha->automations, a, entry);
   }
 
   if (name) free(name);

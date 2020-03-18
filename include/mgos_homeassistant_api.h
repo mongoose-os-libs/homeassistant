@@ -48,6 +48,7 @@ typedef void (*ha_attr_cb)(struct mgos_homeassistant_object *o, const char *payl
 struct mgos_homeassistant {
   char *node_name;
   SLIST_HEAD(objects, mgos_homeassistant_object) objects;
+  SLIST_HEAD(automations, mgos_homeassistant_automation) automations;
 };
 
 struct mgos_homeassistant_object {
