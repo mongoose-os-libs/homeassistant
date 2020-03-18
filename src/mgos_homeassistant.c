@@ -26,6 +26,16 @@ bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *file
   return mgos_homeassistant_fromjson(ha, json_fread(filename));
 }
 
+bool mgos_homeassistant_automation(struct mgos_homeassistant *ha, enum mgos_homeassistant_automation_datatype trigger_type, void *trigger_data) {
+  struct mgos_homeassistant_automation *a;
+  if (!ha) return false;
+
+  SLIST_FOREACH(a, &ha->automations, entry) {
+    mgos_homeassistant_automation_run(a, trigger_type, trigger_data, ha);
+  }
+  return true;
+}
+
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json) {
   struct json_token val;
   void *h = NULL;
@@ -81,7 +91,7 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json
   while ((h = json_next_elem(json, strlen(json), h, ".automation", &idx, &val)) != NULL) {
     struct mgos_homeassistant_automation *a;
 
-    if (!(a = mgos_homeassistant_automation_create(ha, val))) {
+    if (!(a = mgos_homeassistant_automation_create(val))) {
       LOG(LL_WARN, ("Failed to add automation, index %d, json follows:%.*s", idx, (int) val.len, val.ptr));
       continue;
     }

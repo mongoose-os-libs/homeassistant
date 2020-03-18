@@ -49,8 +49,6 @@ struct mgos_homeassistant_automation {
   mgos_homeassistant_automation_condition_cb condition_cb;
   mgos_homeassistant_automation_action_cb action_cb;
 
-  void *user_data;
-
   SLIST_ENTRY(mgos_homeassistant_automation) entry;
 };
 
@@ -76,7 +74,7 @@ struct mgos_homeassistant_automation_data_action_command {
   char *payload;
 };
 
-struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(void *user_data, struct json_token val);
+struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(struct json_token val);
 bool mgos_homeassistant_automation_set_trigger_cb(struct mgos_homeassistant_automation *e, mgos_homeassistant_automation_trigger_cb trigger_cb);
 bool mgos_homeassistant_automation_set_condition_cb(struct mgos_homeassistant_automation *e, mgos_homeassistant_automation_condition_cb condition_cb);
 bool mgos_homeassistant_automation_set_action_cb(struct mgos_homeassistant_automation *e, mgos_homeassistant_automation_action_cb action_cb);
@@ -97,8 +95,8 @@ bool mgos_homeassistant_automation_data_destroy(struct mgos_homeassistant_automa
 // mgos_homeassistant_automation_data_status s;
 // s.object = "button";
 // s.status = "ON";
-// mgos_homeassistant_automation_run (e, TRIGGER_STATUS, &s);
+// mgos_homeassistant_automation_run (e, TRIGGER_STATUS, &s, s_ha);
 //
-bool mgos_homeassistant_automation_run(struct mgos_homeassistant_automation *e, enum mgos_homeassistant_automation_datatype automation_type,
-                                       void *automation_data);
+bool mgos_homeassistant_automation_run(struct mgos_homeassistant_automation *e, enum mgos_homeassistant_automation_datatype trigger_type,
+                                       void *trigger_data, void *user_data);
 bool mgos_homeassistant_automation_destroy(struct mgos_homeassistant_automation **e);
