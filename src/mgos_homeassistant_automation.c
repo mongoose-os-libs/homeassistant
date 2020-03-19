@@ -231,7 +231,8 @@ static bool mgos_homeassistant_automation_run_conditions(struct mgos_homeassista
 
 static bool mgos_homeassistant_automation_run_actions(struct mgos_homeassistant_automation *a, void *user_data) {
   struct mgos_homeassistant_automation_data *d;
-  if (!a) return true;
+  if (!a) return false;
+  if (SLIST_EMPTY(&a->actions)) return false;
   SLIST_FOREACH(d, &a->actions, entry) {
     switch (d->type) {
       case ACTION_MQTT:
@@ -244,15 +245,15 @@ static bool mgos_homeassistant_automation_run_actions(struct mgos_homeassistant_
         break;
     }
   }
-  return false;
-  (void) user_data;
+  return true;
 }
 
 bool mgos_homeassistant_automation_run(struct mgos_homeassistant_automation *a, enum mgos_homeassistant_automation_datatype trigger_type,
                                        void *trigger_data, void *user_data) {
   if (!mgos_homeassistant_automation_run_triggers(a, trigger_type, trigger_data, user_data)) return false;
   if (!mgos_homeassistant_automation_run_conditions(a, user_data)) return false;
-  return mgos_homeassistant_automation_run_actions(a, user_data);
+  if (mgos_homeassistant_automation_run_actions(a, user_data)) mgos_homeassistant_call_handlers(user_data, MGOS_HOMEASSISTANT_EV_AUTOMATION_RUN, a);
+  return true;
 }
 
 struct mgos_homeassistant_automation_data *mgos_homeassistant_automation_data_create(enum mgos_homeassistant_automation_datatype type, void *data) {

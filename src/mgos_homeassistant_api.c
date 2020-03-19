@@ -109,7 +109,7 @@ static bool mgos_homeassistant_exists_classname(struct mgos_homeassistant_object
   return false;
 }
 
-static bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, void *ev_data) {
+bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, void *ev_data) {
   struct mgos_homeassistant_handler *h;
   if (!ha) return false;
 
