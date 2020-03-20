@@ -17,6 +17,8 @@
 #ifdef MGOS_HAVE_BAROMETER
 #include "mgos_homeassistant_barometer.h"
 
+#include <math.h>
+
 static void barometer_timer(void *ud) {
   struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
   if (!o) return;

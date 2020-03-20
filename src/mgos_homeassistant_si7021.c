@@ -17,6 +17,8 @@
 #ifdef MGOS_HAVE_SI7021_I2C
 #include "mgos_homeassistant_si7021.h"
 
+#include <math.h>
+
 static void si7021_timer(void *ud) {
   struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
   if (!o) return;
