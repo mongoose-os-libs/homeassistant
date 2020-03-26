@@ -23,6 +23,7 @@ struct mgos_homeassistant_gpio_motion {
   int gpio;
   int timeout_secs;
   int debounce_ms;
+  bool invert;
   bool state;
 
   mgos_timer_id timer;

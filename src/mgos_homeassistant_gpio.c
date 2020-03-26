@@ -56,7 +56,9 @@ static void motion_button_cb(int gpio, void *ud) {
   if (m->gpio != gpio) return;
 
   level = mgos_gpio_read(m->gpio);
-  LOG(LL_DEBUG, ("GPIO %d: state=%d level=%d timeout=%d", m->gpio, m->state, level, m->timeout_secs));
+  if (m->invert) level = !level;
+
+  LOG(LL_DEBUG, ("GPIO %d: state=%d invert=%d level=%d timeout=%d", m->gpio, m->state, m->invert, level, m->timeout_secs));
   if (0 == level) {
     mgos_clear_timer(m->timer);
     m->timer = mgos_set_timer(m->timeout_secs * 1000, false, motion_timeout_cb, o);
@@ -73,18 +75,35 @@ static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *h
   struct mgos_homeassistant_object *o = NULL;
   int j_timeout = 90;
   int j_debounce = 10;
+  char *j_pull = NULL;
+  int j_invert = false;
+  int pull = MGOS_GPIO_PULL_NONE;
 
   if (!user_data || !ha) return false;
 
-  json_scanf(val.ptr, val.len, "{timeout:%d,debounce:%d}", &j_timeout, &j_debounce);
+  json_scanf(val.ptr, val.len, "{timeout:%d,debounce:%d,invert:%B,pull:%Q}", &j_timeout, &j_debounce, &j_invert, &j_pull);
   user_data->gpio = gpio;
   user_data->timeout_secs = j_timeout;
   user_data->debounce_ms = j_debounce;
+  user_data->invert = j_invert;
+
+  if (j_pull) {
+    if (0 == strcasecmp(j_pull, "up"))
+      pull = MGOS_GPIO_PULL_UP;
+    else if (0 == strcasecmp(j_pull, "down"))
+      pull = MGOS_GPIO_PULL_DOWN;
+    else
+      pull = MGOS_GPIO_PULL_NONE;
+  } else {
+    pull = j_invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN;
+  }
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR,
                                     "\"payload_on\":true,\"payload_off\":false,\"value_template\":\"{{ "
                                     "value_json.motion }}\",\"device_class\":\"motion\"",
                                     motion_stat, user_data);
-  mgos_gpio_set_button_handler(user_data->gpio, MGOS_GPIO_PULL_UP, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, motion_button_cb, o);
+  mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, motion_button_cb, o);
+
+  if (j_pull) free(j_pull);
 
   return true;
 }
@@ -140,6 +159,8 @@ static void momentary_button_cb(int gpio, void *user_data) {
 static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant *ha, const char *object_name, int gpio, struct json_token val) {
   struct mgos_homeassistant_gpio_binary_sensor *user_data = calloc(1, sizeof(*user_data));
   struct mgos_homeassistant_object *o = NULL;
+  char *j_pull = NULL;
+  int pull = MGOS_GPIO_PULL_NONE;
   bool ret = false;
 
   if (!user_data || !ha) return false;
@@ -148,23 +169,33 @@ static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant
   user_data->debounce_ms = 10;
   user_data->invert = false;
   user_data->timeout_ms = 350;
-  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d, timeout:%d}", &user_data->invert, &user_data->debounce_ms, &user_data->timeout_ms);
+  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d, timeout:%d, pull:%Q}", &user_data->invert, &user_data->debounce_ms, &user_data->timeout_ms,
+             &j_pull);
 
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SENSOR, "\"value_template\": \"{{ value_json.action }}\"", momentary_stat, user_data);
   if (!o) goto exit;
+  if (j_pull) {
+    if (0 == strcasecmp(j_pull, "up"))
+      pull = MGOS_GPIO_PULL_UP;
+    else if (0 == strcasecmp(j_pull, "down"))
+      pull = MGOS_GPIO_PULL_DOWN;
+    else
+      pull = MGOS_GPIO_PULL_NONE;
+  } else {
+    pull = user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN;
+  }
 
-  if (!mgos_gpio_set_button_handler(user_data->gpio, user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN, MGOS_GPIO_INT_EDGE_ANY,
-                                    user_data->debounce_ms, momentary_button_cb, o)) {
-    LOG(LL_ERROR, ("Failed to initialize GPIO momentary: gpio=%d invert=%d "
-                   "debounce=%d timeout=%d",
-                   user_data->gpio, user_data->invert, user_data->debounce_ms, user_data->timeout_ms));
+  if (!mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, momentary_button_cb, o)) {
+    LOG(LL_ERROR, ("Failed to initialize GPIO momentary: gpio=%d invert=%d debounce=%d timeout=%d pull=%d", user_data->gpio, user_data->invert,
+                   user_data->debounce_ms, user_data->timeout_ms, pull));
     goto exit;
   }
-  LOG(LL_DEBUG, ("New GPIO momentary: gpio=%d invert=%d debounce=%d timeout=%d", user_data->gpio, user_data->invert, user_data->debounce_ms,
-                 user_data->timeout_ms));
+  LOG(LL_DEBUG, ("New GPIO momentary: gpio=%d invert=%d debounce=%d timeout=%d pull=%d", user_data->gpio, user_data->invert, user_data->debounce_ms,
+                 user_data->timeout_ms, pull));
 
   ret = true;
 exit:
+  if (j_pull) free(j_pull);
   return ret;
 }
 
@@ -198,6 +229,8 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(struct mgos_homeassistant *h
   struct mgos_homeassistant_gpio_binary_sensor *user_data = calloc(1, sizeof(*user_data));
   struct mgos_homeassistant_object *o = NULL;
   bool ret = false;
+  char *j_pull = NULL;
+  int pull = MGOS_GPIO_PULL_NONE;
 
   if (!user_data || !ha) return false;
 
@@ -205,23 +238,33 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(struct mgos_homeassistant *h
   user_data->debounce_ms = 10;
   user_data->invert = false;
   user_data->timeout_ms = -1;
-  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d}", &user_data->invert, &user_data->debounce_ms);
+  json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d, pull:%Q}", &user_data->invert, &user_data->debounce_ms, &j_pull);
+
+  if (j_pull) {
+    if (0 == strcasecmp(j_pull, "up"))
+      pull = MGOS_GPIO_PULL_UP;
+    else if (0 == strcasecmp(j_pull, "down"))
+      pull = MGOS_GPIO_PULL_DOWN;
+    else
+      pull = MGOS_GPIO_PULL_NONE;
+  } else {
+    pull = user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN;
+  }
 
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR, "\"value_template\": \"{{ value_json.state }}\"", toggle_stat,
                                     user_data);
   if (!o) goto exit;
 
-  if (!mgos_gpio_set_button_handler(user_data->gpio, user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN, MGOS_GPIO_INT_EDGE_ANY,
-                                    user_data->debounce_ms, toggle_button_cb, o)) {
-    LOG(LL_ERROR, ("Failed to initialize GPIO toggle: gpio=%d invert=%d "
-                   "debounce=%d",
-                   user_data->gpio, user_data->invert, user_data->debounce_ms));
+  if (!mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, toggle_button_cb, o)) {
+    LOG(LL_ERROR, ("Failed to initialize GPIO toggle: gpio=%d invert=%d debounce=%d pull=%d", user_data->gpio, user_data->invert,
+                   user_data->debounce_ms, pull));
     goto exit;
   }
-  LOG(LL_DEBUG, ("New GPIO toggle: gpio=%d invert=%d debounce=%d", user_data->gpio, user_data->invert, user_data->debounce_ms));
+  LOG(LL_DEBUG, ("New GPIO toggle: gpio=%d invert=%d debounce=%d pull=%d", user_data->gpio, user_data->invert, user_data->debounce_ms, pull));
 
   ret = true;
 exit:
+  if (j_pull) free(j_pull);
   return ret;
 }
 
