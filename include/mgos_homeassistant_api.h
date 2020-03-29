@@ -131,6 +131,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_get(struct mgos_home
 bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha, const char *prefix, char *name, int namelen);
 bool mgos_homeassistant_object_cmd(struct mgos_homeassistant_object *o, const char *name, const char *payload, const int payload_len);
 bool mgos_homeassistant_object_attr(struct mgos_homeassistant_object *o, const char *name, const char *payload, const int payload_len);
+bool mgos_homeassistant_object_log(struct mgos_homeassistant_object *o, const char *json_fmt, ...);
 bool mgos_homeassistant_object_add_cmd_cb(struct mgos_homeassistant_object *o, const char *name, ha_cmd_cb cmd);
 bool mgos_homeassistant_object_add_attr_cb(struct mgos_homeassistant_object *o, const char *name, ha_attr_cb attr);
 bool mgos_homeassistant_object_get_status(struct mgos_homeassistant_object *o);

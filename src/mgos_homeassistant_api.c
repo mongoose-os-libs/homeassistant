@@ -512,6 +512,23 @@ bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o) 
   return true;
 }
 
+bool mgos_homeassistant_object_log(struct mgos_homeassistant_object *o, const char *json_fmt, ...) {
+  va_list ap;
+  struct mbuf mbuf_topic;
+
+  if (!o) return false;
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+  mbuf_append(&mbuf_topic, "/log", 4);
+  mbuf_topic.buf[mbuf_topic.len] = 0;
+
+  va_start(ap, json_fmt);
+  mgos_mqtt_pubv(mbuf_topic.buf, 0, false, json_fmt, ap);
+  va_end(ap);
+  mbuf_free(&mbuf_topic);
+  return true;
+}
+
 static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant *ha, struct mgos_homeassistant_object *o,
                                                        struct mgos_homeassistant_object_class *c) {
   struct mbuf mbuf_topic;
