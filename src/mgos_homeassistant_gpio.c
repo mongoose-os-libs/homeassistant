@@ -268,6 +268,15 @@ exit:
   return ret;
 }
 
+static void compute_schedule_override(struct mgos_homeassistant_gpio_switch *d) {
+  if (!d) return;
+  bool gpio_state = mgos_gpio_read_out(d->gpio);
+  if (d->invert) gpio_state = !gpio_state;
+  bool timespec_state = timespec_match_now(d->schedule_timespec);
+  LOG(LL_DEBUG, ("timespec=%d gpio=%d ==> override=%d", timespec_state, gpio_state, d->schedule_override));
+  d->schedule_override = (timespec_state != gpio_state);
+}
+
 static void switch_stat(struct mgos_homeassistant_object *o, struct json_out *json) {
   struct mgos_homeassistant_gpio_switch *d;
 
@@ -279,6 +288,7 @@ static void switch_stat(struct mgos_homeassistant_object *o, struct json_out *js
   if (d->invert) level = !level;
   LOG(LL_DEBUG, ("gpio=%d level=%d invert=%d", d->gpio, level, d->invert));
   json_printf(json, "state:%Q", level ? "ON" : "OFF");
+  if (d->schedule_timespec) json_printf(json, ",schedule:{override:%B}", d->schedule_override);
 }
 
 static void switch_timer_cb(void *user_data) {
@@ -290,6 +300,7 @@ static void switch_timer_cb(void *user_data) {
   if (!d) return;
 
   mgos_gpio_toggle(d->gpio);
+  compute_schedule_override(d);
   mgos_homeassistant_object_send_status(o);
   d->timer = 0;
 }
@@ -325,7 +336,104 @@ static void switch_cmd_cb(struct mgos_homeassistant_object *o, const char *paylo
   }
 
 exit:
+  compute_schedule_override(d);
   mgos_homeassistant_object_send_status(o);
+  return;
+}
+
+static void switch_schedule_timer(void *user_data) {
+  struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) user_data;
+  struct mgos_homeassistant_gpio_switch *d;
+  bool timespec_state, gpio_state;
+  char *j_state = NULL;
+  if (!o) return;
+
+  if (!(d = (struct mgos_homeassistant_gpio_switch *) o->user_data)) return;
+  if (!d->schedule_timespec) return;
+  timespec_state = timespec_match_now(d->schedule_timespec);
+
+  json_scanf(o->status.buf, o->status.len, "{state:%Q}", &j_state);
+  if (!j_state)
+    gpio_state = false;
+  else
+    gpio_state = (0 == strcasecmp(j_state, "ON"));
+
+  LOG(LL_DEBUG, ("Schedule for object '%s': status='%.*s' gpio_state=%d timespec_state=%d override=%d", o->object_name, (int) o->status.len,
+                 o->status.buf, gpio_state, timespec_state, d->schedule_override));
+
+  if (gpio_state == timespec_state) {
+    if (d->schedule_override) {
+      LOG(LL_INFO, ("Object '%s' is transitioning back on schedule, clearing override", o->object_name));
+      d->schedule_override = false;
+      goto exit;
+    } else {
+      // LOG(LL_DEBUG, ("Object '%s' is tracking on schedule", o->object_name));
+      goto exit;
+    }
+  } else {
+    if (d->schedule_override) {
+      // LOG(LL_DEBUG, ("Object '%s' is in override (schedule wants %s, switch has %s)", o->object_name, timespec_state?"ON":"OFF",
+      // gpio_state?"ON":"OFF"));
+      goto exit;
+    } else {
+      LOG(LL_INFO, ("Object '%s' being set to %s by schedule", o->object_name, timespec_state ? "ON" : "OFF"));
+      if (timespec_state)
+        switch_cmd_cb(o, "ON", 2);
+      else
+        switch_cmd_cb(o, "OFF", 3);
+      goto exit;
+    }
+  }
+exit:
+  if (j_state) free(j_state);
+}
+
+static void switch_cmd_schedule_cb(struct mgos_homeassistant_object *o, const char *payload, const int payload_len) {
+  struct mgos_homeassistant_gpio_switch *d = NULL;
+  struct mgos_timespec *ts = NULL;
+  bool ret = false;
+  char *j_timespec = NULL;
+  bool j_override = false;
+
+  if (!o) goto exit;
+  if (!(d = (struct mgos_homeassistant_gpio_switch *) o->user_data)) goto exit;
+
+  if (payload_len == 0) {
+    if (d->schedule_timespec) {
+      LOG(LL_INFO, ("Removing schedule on object '%s'", o->object_name));
+      mgos_clear_timer(d->schedule_timer);
+      d->schedule_timer = 0;
+      timespec_destroy(&d->schedule_timespec);
+      d->schedule_timespec = NULL;
+      d->schedule_override = false;
+    }
+    goto exit;
+  }
+
+  json_scanf(payload, payload_len, "{timespec:%Q,override:%B}", &j_timespec, &j_override);
+  if (!j_timespec) {
+    LOG(LL_ERROR, ("Timespec field is mandatory"));
+    goto exit;
+  }
+
+  if (!(ts = timespec_create())) goto exit;
+  if (!timespec_add_spec(ts, j_timespec)) {
+    LOG(LL_ERROR, ("Invalid timespec '%s'", j_timespec));
+    goto exit;
+  }
+
+  LOG(LL_INFO, ("%s schedule on object '%s' with timespec '%s' and setting switch override to %s", d->schedule_timespec ? "Replacing" : "Setting",
+                o->object_name, j_timespec, j_override ? "true" : "false"));
+
+  if (d->schedule_timespec) timespec_destroy(&d->schedule_timespec);
+  d->schedule_timespec = ts;
+  d->schedule_override = j_override;
+  mgos_clear_timer(d->schedule_timer);
+  d->schedule_timer = mgos_set_timer(1000, true, switch_schedule_timer, o);
+  ret = true;
+exit:
+  if (j_timespec) free(j_timespec);
+  if (!ret && ts) free(ts);
   return;
 }
 
@@ -338,11 +446,15 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
 
   user_data->gpio = gpio;
   user_data->invert = false;
+  user_data->schedule_timespec = NULL;
+  user_data->schedule_override = false;
+  user_data->schedule_timer = 0;
   json_scanf(val.ptr, val.len, "{invert:%B}", &user_data->invert);
 
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SWITCH, "\"value_template\":\"{{ value_json.state }}\"", switch_stat, user_data);
   if (!o) goto exit;
   mgos_homeassistant_object_set_cmd_cb(o, switch_cmd_cb);
+  mgos_homeassistant_object_add_cmd_cb(o, "schedule", switch_cmd_schedule_cb);
 
   if (!mgos_gpio_setup_output(user_data->gpio, user_data->invert ? 1 : 0)) {
     LOG(LL_ERROR, ("Failed to initialize GPIO switch: gpio=%d invert=%d", user_data->gpio, user_data->invert));

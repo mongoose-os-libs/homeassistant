@@ -18,6 +18,7 @@
 #include "mgos.h"
 #include "mgos_gpio.h"
 #include "mgos_homeassistant.h"
+#include "timespec.h"
 
 struct mgos_homeassistant_gpio_motion {
   int gpio;
@@ -43,7 +44,13 @@ struct mgos_homeassistant_gpio_switch {
   int gpio;
   bool invert;
 
+  // Duration tracking
   mgos_timer_id timer;
+
+  // Schedule tracking
+  struct mgos_timespec *schedule_timespec;
+  bool schedule_override;
+  mgos_timer_id schedule_timer;
 };
 
 bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha, struct json_token val);
