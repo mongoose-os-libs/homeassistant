@@ -112,7 +112,7 @@ static bool timespec_spec_parse(const char *spec, struct mgos_timespec_spec *out
     return false;
   }
 
-  //	LOG(LL_DEBUG, ("start=%d stop=%d", start, stop));
+  //  LOG(LL_DEBUG, ("start=%d stop=%d", start, stop));
   if (out) {
     out->start_h = start_h;
     out->start_m = start_m;
@@ -181,19 +181,16 @@ bool timespec_match(const struct mgos_timespec *ts, const struct tm *tm) {
     }
     if (stop >= start) {
       if (target >= start && target < stop) {
-        //				LOG(LL_DEBUG, ("start=%d stop=%d target=%d
-        // matched", start, stop, target));
+        // LOG(LL_DEBUG, ("start=%d stop=%d target=%d matched", start, stop, target));
         return true;
       }
     } else {
       if (target >= start || target < stop) {
-        //				LOG(LL_DEBUG, ("start=%d stop=%d target=%d
-        // matched", start, stop, target));
+        // LOG(LL_DEBUG, ("start=%d stop=%d target=%d matched", start, stop, target));
         return true;
       }
     }
-    //		LOG(LL_DEBUG, ("start=%d stop=%d target=%d did not match", start,
-    // stop, target));
+    // LOG(LL_DEBUG, ("start=%d stop=%d target=%d did not match", start, stop, target));
   }
   return false;
 }
