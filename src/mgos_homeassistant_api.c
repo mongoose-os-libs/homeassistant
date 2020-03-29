@@ -126,9 +126,9 @@ static struct mgos_homeassistant_object_attr *mgos_homeassistant_object_get_attr
   if (!o) return NULL;
 
   SLIST_FOREACH(a, &o->attrs, entry) {
-    if (c->attr_name == NULL && s == NULL) return c;
-    if (c->attr_name == NULL || s == NULL) continue;
-    if (0 == strcasecmp(s, c->attr_name)) return c;
+    if (a->attr_name == NULL && s == NULL) return a;
+    if (a->attr_name == NULL || s == NULL) continue;
+    if (0 == strcasecmp(s, a->attr_name)) return a;
   }
   return NULL;
 }
