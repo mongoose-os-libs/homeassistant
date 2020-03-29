@@ -109,6 +109,40 @@ static bool mgos_homeassistant_exists_classname(struct mgos_homeassistant_object
   return false;
 }
 
+static struct mgos_homeassistant_object_cmd *mgos_homeassistant_object_get_cmd(struct mgos_homeassistant_object *o, const char *s) {
+  struct mgos_homeassistant_object_cmd *c;
+  if (!o) return NULL;
+
+  SLIST_FOREACH(c, &o->cmds, entry) {
+    if (c->cmd_name == NULL) {
+      if (s == NULL)
+        return c;
+      else
+        continue;
+    } else {
+      if (0 == strcasecmp(s, c->cmd_name)) return c;
+    }
+  }
+  return NULL;
+}
+
+static struct mgos_homeassistant_object_attr *mgos_homeassistant_object_get_attr(struct mgos_homeassistant_object *o, const char *s) {
+  struct mgos_homeassistant_object_attr *a;
+  if (!o) return NULL;
+
+  SLIST_FOREACH(a, &o->attrs, entry) {
+    if (a->attr_name == NULL) {
+      if (s == NULL)
+        return a;
+      else
+        continue;
+    } else {
+      if (0 == strcasecmp(s, a->attr_name)) return a;
+    }
+  }
+  return NULL;
+}
+
 bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, void *ev_data) {
   struct mgos_homeassistant_handler *h;
   if (!ha) return false;
@@ -118,32 +152,6 @@ bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, voi
     h->ev_handler(ha, ev, ev_data, h->user_data);
   }
   return true;
-}
-
-static bool endswith(const char *str, size_t str_len, const char *suffix) {
-  if (!str || !suffix) return false;
-  size_t suffix_len = strlen(suffix);
-  if (suffix_len > str_len) return false;
-  return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
-}
-
-static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *topic, int topic_len, const char *msg, int msg_len, void *ud) {
-  struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
-  if (!o) return;
-
-  if (endswith(topic, (size_t) topic_len, "/stat")) {
-    LOG(LL_DEBUG, ("Received STAT object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
-    mgos_homeassistant_object_send_status(o);
-  } else if (endswith(topic, (size_t) topic_len, "/cmd") && o->cmd_cb) {
-    LOG(LL_DEBUG, ("Received CMD object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
-    o->cmd_cb(o, msg, msg_len);
-    mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_CMD, o);
-  } else if (endswith(topic, (size_t) topic_len, "/attr") && o->attr_cb) {
-    LOG(LL_DEBUG, ("Received ATTR object='%s' topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
-    o->attr_cb(o, msg, msg_len);
-    mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_ATTR, o);
-  }
-  (void) nc;
 }
 
 static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
@@ -181,6 +189,101 @@ static char *gen_friendlyname(struct mbuf *m, const struct mgos_homeassistant_ob
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
   return m->buf;
+}
+
+static bool endswith(const char *str, size_t str_len, const char *suffix) {
+  if (!str || !suffix) return false;
+  size_t suffix_len = strlen(suffix);
+  if (suffix_len > str_len) return false;
+  return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
+}
+
+static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *topic, int topic_len, const char *msg, int msg_len, void *ud) {
+  struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
+  if (!o) return;
+
+  LOG(LL_DEBUG, ("Received MQTT for object '%s': topic='%.*s' payload='%.*s'", o->object_name, topic_len, topic, msg_len, msg));
+  if (endswith(topic, (size_t) topic_len, "/stat")) {
+    mgos_homeassistant_object_send_status(o);
+    return;
+  }
+
+  struct mbuf mbuf_topic;
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, o);
+
+  mbuf_append(&mbuf_topic, "/cmd", 4);
+  if ((topic_len >= (int) mbuf_topic.len) && (0 == strncasecmp(topic, mbuf_topic.buf, mbuf_topic.len))) {
+    int cmd_len = topic_len - mbuf_topic.len;
+    const char *cmdp = topic + mbuf_topic.len;
+
+    if (!cmdp || (cmd_len == 0)) {
+      LOG(LL_DEBUG, ("Issuing command '(default)' on object '%s'", o->object_name));
+      mbuf_free(&mbuf_topic);
+      mgos_homeassistant_object_cmd(o, NULL, msg, msg_len);
+      return;
+    }
+    if (*cmdp != '/') {
+      LOG(LL_ERROR, ("Malformed command path, expecting '/'"));
+      mbuf_free(&mbuf_topic);
+      return;
+    }
+    cmd_len--;
+    cmdp++;  // chop of '/'
+    if (cmd_len == 0) {
+      LOG(LL_DEBUG, ("Issuing command '(default)' on object '%s'", o->object_name));
+      mbuf_free(&mbuf_topic);
+      mgos_homeassistant_object_cmd(o, NULL, msg, msg_len);
+      return;
+    }
+    LOG(LL_DEBUG, ("Issuing command '%.*s' on object '%s'", (int) cmd_len, cmdp, o->object_name));
+    mbuf_free(&mbuf_topic);
+
+    // mgos_homeassistant_object_cmd() expects NULL terminated string.
+    char *cmd = malloc(cmd_len + 1);
+    memcpy(cmd, cmdp, cmd_len);
+    cmd[cmd_len] = 0;
+    mgos_homeassistant_object_cmd(o, cmd, msg, msg_len);
+    free(cmd);
+    return;
+  }
+
+  mbuf_topic.len -= 4;
+  mbuf_append(&mbuf_topic, "/attr", 5);
+  if ((topic_len >= (int) mbuf_topic.len) && (0 == strncasecmp(topic, mbuf_topic.buf, mbuf_topic.len))) {
+    int attr_len = topic_len - mbuf_topic.len;
+    const char *attrp = topic + mbuf_topic.len;
+    if (!attrp || (attr_len == 0)) {
+      LOG(LL_DEBUG, ("Issuing attribute '(default)' on object '%s'", o->object_name));
+      mbuf_free(&mbuf_topic);
+      mgos_homeassistant_object_attr(o, NULL, msg, msg_len);
+      return;
+    }
+    if (*attrp != '/') {
+      LOG(LL_ERROR, ("Malformed attribute path, expecting '/'"));
+      mbuf_free(&mbuf_topic);
+      return;
+    }
+    attr_len--;
+    attrp++;  // chop of '/'
+    if (attr_len == 0) {
+      LOG(LL_DEBUG, ("Issuing attribute '(default)' on object '%s'", o->object_name));
+      mbuf_free(&mbuf_topic);
+      mgos_homeassistant_object_attr(o, NULL, msg, msg_len);
+      return;
+    }
+    LOG(LL_DEBUG, ("Issuing attribute '%.*s' on object '%s'", (int) attr_len, attrp, o->object_name));
+    mbuf_free(&mbuf_topic);
+
+    // mgos_homeassistant_object_attr() expects NULL terminated string.
+    char *attr = malloc(attr_len + 1);
+    memcpy(attr, attrp, attr_len);
+    attr[attr_len] = 0;
+    mgos_homeassistant_object_attr(o, attr, msg, msg_len);
+    free(attr);
+    return;
+  }
+  (void) nc;
 }
 
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
@@ -247,6 +350,8 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_home
   o->status_cb = status_cb;
   mbuf_init(&o->status, 20);
   SLIST_INIT(&o->classes);
+  SLIST_INIT(&o->cmds);
+  SLIST_INIT(&o->attrs);
   SLIST_INSERT_HEAD(&ha->objects, o, entry);
 
   // Add a wildcard MQTT subscription for this object.
@@ -263,15 +368,99 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_home
   return o;
 }
 
-bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd_cb) {
+bool mgos_homeassistant_object_cmd(struct mgos_homeassistant_object *o, const char *name, const char *payload, const int payload_len) {
+  struct mgos_homeassistant_object_cmd *c;
   if (!o) return false;
-  o->cmd_cb = cmd_cb;
+  if (!(c = mgos_homeassistant_object_get_cmd(o, name))) {
+    LOG(LL_WARN, ("No command '%s' on object '%s'", name ? name : "(default)", o->object_name));
+    return false;
+  }
+  if (!c->cmd_cb) {
+    LOG(LL_WARN, ("No callback function on command '%s' of object '%s'", name ? name : "(default)", o->object_name));
+    return false;
+  }
+  LOG(LL_DEBUG, ("Calling command '%s' of object '%s'", name ? name : "(default)", o->object_name));
+  c->cmd_cb(o, payload, payload_len);
+  mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_CMD, c);
   return true;
 }
 
-bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr_cb) {
+bool mgos_homeassistant_object_attr(struct mgos_homeassistant_object *o, const char *name, const char *payload, const int payload_len) {
+  struct mgos_homeassistant_object_attr *a;
   if (!o) return false;
-  o->attr_cb = attr_cb;
+  if (!(a = mgos_homeassistant_object_get_attr(o, name))) {
+    LOG(LL_WARN, ("No attribute '%s' on object '%s'", name ? name : "(default)", o->object_name));
+    return false;
+  }
+  if (!a->attr_cb) {
+    LOG(LL_WARN, ("No callback function on attribute '%s' of object '%s'", name ? name : "(default)", o->object_name));
+    return false;
+  }
+  LOG(LL_DEBUG, ("Calling attribute '%s' of object '%s'", name ? name : "(default)", o->object_name));
+  a->attr_cb(o, payload, payload_len);
+  mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_ATTR, a);
+  return true;
+}
+
+bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd_cb) {
+  return mgos_homeassistant_object_add_cmd_cb(o, NULL, cmd_cb);
+}
+
+bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr_cb) {
+  return mgos_homeassistant_object_add_attr_cb(o, NULL, attr_cb);
+}
+
+bool mgos_homeassistant_object_remove_cmd(struct mgos_homeassistant_object_cmd **c) {
+  if (!(*c)) return false;
+
+  LOG(LL_DEBUG, ("Removing command '%s' from object '%s'", (*c)->cmd_name ? (*c)->cmd_name : "(default)", (*c)->object->object_name));
+  if ((*c)->cmd_name) free((*c)->cmd_name);
+  free(*c);
+  *c = NULL;
+  return true;
+}
+
+bool mgos_homeassistant_object_remove_attr(struct mgos_homeassistant_object_attr **a) {
+  if (!(*a)) return false;
+
+  LOG(LL_DEBUG, ("Removing attribute '%s' from object '%s'", (*a)->attr_name ? (*a)->attr_name : "(default)", (*a)->object->object_name));
+  if ((*a)->attr_name) free((*a)->attr_name);
+  free(*a);
+  *a = NULL;
+  return true;
+}
+
+bool mgos_homeassistant_object_add_cmd_cb(struct mgos_homeassistant_object *o, const char *name, ha_cmd_cb cmd_cb) {
+  struct mgos_homeassistant_object_cmd *c;
+  if (!o) return false;
+
+  if (!(c = mgos_homeassistant_object_get_cmd(o, name))) {
+    if (!(c = calloc(1, sizeof(*c)))) return false;
+    LOG(LL_DEBUG, ("Creating command '%s' on object '%s'", name ? name : "(default)", o->object_name));
+    if (name) c->cmd_name = strdup(name);
+    SLIST_INSERT_HEAD(&o->cmds, c, entry);
+  } else {
+    LOG(LL_DEBUG, ("Replacing command '%s' on object '%s'", name ? name : "(default)", o->object_name));
+  }
+  c->cmd_cb = cmd_cb;
+  c->object = o;
+  return true;
+}
+
+bool mgos_homeassistant_object_add_attr_cb(struct mgos_homeassistant_object *o, const char *name, ha_attr_cb attr_cb) {
+  struct mgos_homeassistant_object_attr *a;
+  if (!o) return false;
+
+  if (!(a = mgos_homeassistant_object_get_attr(o, name))) {
+    if (!(a = calloc(1, sizeof(*a)))) return false;
+    LOG(LL_DEBUG, ("Creating attribute '%s' on object '%s'", name ? name : "(default)", o->object_name));
+    if (name) a->attr_name = strdup(name);
+    SLIST_INSERT_HEAD(&o->attrs, a, entry);
+  } else {
+    LOG(LL_DEBUG, ("Replacing attribute '%s' on object '%s'", name ? name : "(default)", o->object_name));
+  }
+  a->attr_cb = attr_cb;
+  a->object = o;
   return true;
 }
 
@@ -366,8 +555,8 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
   json_printf(&payload, ",unique_id:\"%s:%.*s\"", mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len, mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s\"", mgos_sys_config_get_device_id());
   json_printf(&payload, ",stat_t:%Q", "~");
-  if (o->cmd_cb) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
-  if (o->attr_cb) json_printf(&payload, ",attr_t:%Q", "~/attr");
+  if (!mgos_homeassistant_object_get_cmd(o, NULL)) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
+  if (!mgos_homeassistant_object_get_attr(o, NULL)) json_printf(&payload, ",attr_t:%Q", "~/attr");
   if (c) {
     json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"", c->class_name, "value_json.", c->class_name);
     if (c->json_config_additional_payload) json_printf(&payload, ",%s", c->json_config_additional_payload);
@@ -404,7 +593,7 @@ bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) 
 
   if (!o || !o->ha) goto exit;
 
-  if (o->status_cb || o->cmd_cb || o->attr_cb) {
+  if (o->status_cb || mgos_homeassistant_object_get_cmd(o, NULL) || mgos_homeassistant_object_get_attr(o, NULL)) {
     done++;
     if (mgos_homeassistant_object_send_config_mqtt(o->ha, o, NULL)) success++;
   }
@@ -431,6 +620,20 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
     struct mgos_homeassistant_object_class *c;
     c = SLIST_FIRST(&(*o)->classes);
     mgos_homeassistant_object_class_remove(&c);
+  }
+
+  while (!SLIST_EMPTY(&(*o)->cmds)) {
+    struct mgos_homeassistant_object_cmd *c;
+    c = SLIST_FIRST(&(*o)->cmds);
+    SLIST_REMOVE(&(*o)->cmds, c, mgos_homeassistant_object_cmd, entry);
+    mgos_homeassistant_object_remove_cmd(&c);
+  }
+
+  while (!SLIST_EMPTY(&(*o)->attrs)) {
+    struct mgos_homeassistant_object_attr *a;
+    a = SLIST_FIRST(&(*o)->attrs);
+    SLIST_REMOVE(&(*o)->attrs, a, mgos_homeassistant_object_attr, entry);
+    mgos_homeassistant_object_remove_attr(&a);
   }
 
   if ((*o)->object_name) free((*o)->object_name);

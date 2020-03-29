@@ -47,8 +47,8 @@ enum mgos_homeassistant_component {
 #define MGOS_HOMEASSISTANT_EV_CLEAR 11           // ev_data: NULL
 #define MGOS_HOMEASSISTANT_EV_OBJECT_ADD 20      // ev_data: struct mgos_homeassistant_object *
 #define MGOS_HOMEASSISTANT_EV_OBJECT_STATUS 21   // ev_data: struct mgos_homeassistant_object *
-#define MGOS_HOMEASSISTANT_EV_OBJECT_CMD 22      // ev_data: struct mgos_homeassistant_object *
-#define MGOS_HOMEASSISTANT_EV_OBJECT_ATTR 23     // ev_data: struct mgos_homeassistant_object *
+#define MGOS_HOMEASSISTANT_EV_OBJECT_CMD 22      // ev_data: struct mgos_homeassistant_object_cmd *
+#define MGOS_HOMEASSISTANT_EV_OBJECT_ATTR 23     // ev_data: struct mgos_homeassistant_object_attr *
 #define MGOS_HOMEASSISTANT_EV_OBJECT_REMOVE 24   // ev_data: struct mgos_homeassistant_object *
 #define MGOS_HOMEASSISTANT_EV_CLASS_ADD 30       // ev_data: struct mgos_homeassistant_object_class *
 #define MGOS_HOMEASSISTANT_EV_CLASS_REMOVE 31    // ev_data: struct mgos_homeassistant_object_class *
@@ -67,6 +67,22 @@ struct mgos_homeassistant {
   SLIST_HEAD(handlers, mgos_homeassistant_handler) handlers;
 };
 
+struct mgos_homeassistant_object_cmd {
+  char *cmd_name;
+  ha_cmd_cb cmd_cb;
+  struct mgos_homeassistant_object *object;
+
+  SLIST_ENTRY(mgos_homeassistant_object_cmd) entry;
+};
+
+struct mgos_homeassistant_object_attr {
+  char *attr_name;
+  ha_attr_cb attr_cb;
+  struct mgos_homeassistant_object *object;
+
+  SLIST_ENTRY(mgos_homeassistant_object_attr) entry;
+};
+
 struct mgos_homeassistant_object {
   struct mgos_homeassistant *ha;
   enum mgos_homeassistant_component component;
@@ -76,8 +92,8 @@ struct mgos_homeassistant_object {
   char *json_config_additional_payload;
 
   ha_status_cb status_cb;
-  ha_cmd_cb cmd_cb;
-  ha_attr_cb attr_cb;
+  SLIST_HEAD(cmds, mgos_homeassistant_object_cmd) cmds;
+  SLIST_HEAD(attrs, mgos_homeassistant_object_attr) attrs;
   void *user_data;
 
   struct mbuf status;
@@ -113,6 +129,10 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_home
                                                                 const char *json_config_additional_payload, ha_status_cb status, void *user_data);
 struct mgos_homeassistant_object *mgos_homeassistant_object_get(struct mgos_homeassistant *ha, const char *suffix);
 bool mgos_homeassistant_object_generate_name(struct mgos_homeassistant *ha, const char *prefix, char *name, int namelen);
+bool mgos_homeassistant_object_cmd(struct mgos_homeassistant_object *o, const char *name, const char *payload, const int payload_len);
+bool mgos_homeassistant_object_attr(struct mgos_homeassistant_object *o, const char *name, const char *payload, const int payload_len);
+bool mgos_homeassistant_object_add_cmd_cb(struct mgos_homeassistant_object *o, const char *name, ha_cmd_cb cmd);
+bool mgos_homeassistant_object_add_attr_cb(struct mgos_homeassistant_object *o, const char *name, ha_attr_cb attr);
 bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd);
 bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr);
 bool mgos_homeassistant_object_get_status(struct mgos_homeassistant_object *o);

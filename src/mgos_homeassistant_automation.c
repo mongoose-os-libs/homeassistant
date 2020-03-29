@@ -77,13 +77,9 @@ static bool action_command(struct mgos_homeassistant *ha, struct mgos_homeassist
     return false;
   }
 
-  if (!o->cmd_cb) {
-    LOG(LL_ERROR, ("Action: Object '%s' has no command handler", data->object));
-    return false;
-  }
-
   LOG(LL_INFO, ("Action: Command object='%s' payload='%s'", data->object, data->payload));
-  o->cmd_cb(o, data->payload, strlen(data->payload));
+  // TODO(pim): Attr command names
+  mgos_homeassistant_object_cmd(o, NULL, data->payload, strlen(data->payload));
 
   return true;
 }
