@@ -68,6 +68,8 @@ construction of objects and classes is described below.
     the callback given at object creation time.
 *   ***`mgos_homeassistant_object_send_config()`*** sends a MQTT update with
     the configuration of the object (and its classes, see below).
+*   ***`mgos_homeassistant_object_log()`*** sends a MQTT update with the
+    specified logline, in JSON format. It will be sent to the `/log` topic.
 *   ***`mgos_homeassistant_object_remove()`*** removes the object (and its
     classes, see below) from `ha` structure.
 
