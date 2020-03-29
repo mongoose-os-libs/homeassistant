@@ -77,9 +77,8 @@ static bool action_command(struct mgos_homeassistant *ha, struct mgos_homeassist
     return false;
   }
 
-  LOG(LL_INFO, ("Action: Command object='%s' payload='%s'", data->object, data->payload));
-  // TODO(pim): Attr command names
-  mgos_homeassistant_object_cmd(o, NULL, data->payload, strlen(data->payload));
+  LOG(LL_INFO, ("Action: Command object='%s' command='%s' payload='%s'", data->object, data->cmd_name?data->cmd_name:"(default)", data->payload));
+  mgos_homeassistant_object_cmd(o, data->cmd_name, data->payload, strlen(data->payload));
 
   return true;
 }
@@ -177,7 +176,7 @@ struct mgos_homeassistant_automation *mgos_homeassistant_automation_create(struc
     } else if (0 == strcasecmp(j_type, "command")) {
       struct mgos_homeassistant_automation_data_action_command *dd = calloc(1, sizeof(*dd));
       if (dd) {
-        json_scanf(val.ptr, val.len, "{object:%Q,payload:%Q}", &dd->object, &dd->payload);
+        json_scanf(val.ptr, val.len, "{object:%Q,command:%Q,payload:%Q}", &dd->object, &dd->cmd_name, &dd->payload);
         if (!mgos_homeassistant_automation_add_action(a, ACTION_COMMAND, dd)) {
           LOG(LL_WARN, ("Could not add action JSON: %.*s, skipping", (int) val.len, val.ptr));
         } else {
@@ -287,6 +286,7 @@ bool mgos_homeassistant_automation_data_destroy(struct mgos_homeassistant_automa
       if (!dd) return true;
       if (dd->object) free(dd->object);
       if (dd->payload) free(dd->payload);
+      if (dd->cmd_name) free(dd->cmd_name);
       break;
     }
     default:

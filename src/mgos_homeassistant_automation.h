@@ -63,6 +63,7 @@ struct mgos_homeassistant_automation_data_action_mqtt {
 
 struct mgos_homeassistant_automation_data_action_command {
   char *object;
+  char *cmd_name;
   char *payload;
 };
 
