@@ -388,6 +388,23 @@ exit:
   if (j_state) free(j_state);
 }
 
+static void switch_cmd_schedule_get_cb(struct mgos_homeassistant_object *o, const char *payload, const int payload_len) {
+  struct mgos_homeassistant_gpio_switch *d = NULL;
+  if (!o) return;
+  if (!(d = (struct mgos_homeassistant_gpio_switch *) o->user_data)) return;
+
+  if (d->schedule_timespec) {
+    char ts_str[100];
+    timespec_get_spec(d->schedule_timespec, ts_str, sizeof(ts_str));
+    mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "timespec", "get", ts_str, d->schedule_override);
+  } else {
+    mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "timespec", "get", NULL, d->schedule_override);
+  }
+
+  (void) payload;
+  (void) payload_len;
+}
+
 static void switch_cmd_schedule_cb(struct mgos_homeassistant_object *o, const char *payload, const int payload_len) {
   struct mgos_homeassistant_gpio_switch *d = NULL;
   struct mgos_timespec *ts = NULL;
@@ -401,6 +418,7 @@ static void switch_cmd_schedule_cb(struct mgos_homeassistant_object *o, const ch
   if (payload_len == 0) {
     if (d->schedule_timespec) {
       LOG(LL_INFO, ("Removing schedule on object '%s'", o->object_name));
+      mgos_homeassistant_object_log(o, "{type:%Q,action:%Q}", "timespec", "remove");
       mgos_clear_timer(d->schedule_timer);
       d->schedule_timer = 0;
       timespec_destroy(&d->schedule_timespec);
@@ -424,6 +442,8 @@ static void switch_cmd_schedule_cb(struct mgos_homeassistant_object *o, const ch
 
   LOG(LL_INFO, ("%s schedule on object '%s' with timespec '%s' and setting switch override to %s", d->schedule_timespec ? "Replacing" : "Setting",
                 o->object_name, j_timespec, j_override ? "true" : "false"));
+  mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "timespec", d->schedule_timespec ? "replace" : "set", j_timespec,
+                                j_override);
 
   if (d->schedule_timespec) timespec_destroy(&d->schedule_timespec);
   d->schedule_timespec = ts;
@@ -455,6 +475,7 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
   if (!o) goto exit;
   mgos_homeassistant_object_add_cmd_cb(o, NULL, switch_cmd_cb);
   mgos_homeassistant_object_add_cmd_cb(o, "schedule", switch_cmd_schedule_cb);
+  mgos_homeassistant_object_add_cmd_cb(o, "schedule/get", switch_cmd_schedule_get_cb);
 
   if (!mgos_gpio_setup_output(user_data->gpio, user_data->invert ? 1 : 0)) {
     LOG(LL_ERROR, ("Failed to initialize GPIO switch: gpio=%d invert=%d", user_data->gpio, user_data->invert));
