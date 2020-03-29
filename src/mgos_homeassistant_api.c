@@ -392,14 +392,6 @@ bool mgos_homeassistant_object_attr(struct mgos_homeassistant_object *o, const c
   return true;
 }
 
-bool mgos_homeassistant_object_set_cmd_cb(struct mgos_homeassistant_object *o, ha_cmd_cb cmd_cb) {
-  return mgos_homeassistant_object_add_cmd_cb(o, NULL, cmd_cb);
-}
-
-bool mgos_homeassistant_object_set_attr_cb(struct mgos_homeassistant_object *o, ha_attr_cb attr_cb) {
-  return mgos_homeassistant_object_add_attr_cb(o, NULL, attr_cb);
-}
-
 bool mgos_homeassistant_object_remove_cmd(struct mgos_homeassistant_object_cmd **c) {
   if (!(*c)) return false;
 

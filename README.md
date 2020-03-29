@@ -51,10 +51,14 @@ construction of objects and classes is described below.
     if none are found.
 *   ***`mgos_homeassistant_object_get_userdata()`*** returns the provided
     _userdata_ struct upon creation.
-*   ***`mgos_homeassistant_object_set_cmd_cb()`*** sets the callback function
-    for _command_ MQTT requests.
-*   ***`mgos_homeassistant_object_set_attr_cb()`*** sets the callback function
-    for _attribute_ MQTT requests.
+*   ***`mgos_homeassistant_object_add_cmd_cb()`*** adds a callback function
+    for _command_ MQTT requests, optionally using _name_ as a suffix. Setting
+    a command with _name_ to NULL registers the main `/cmd` command, otherwise
+    a command with `/cmd/name` is registered.
+*   ***`mgos_homeassistant_object_add_attr_cb()`*** adds a callback function
+    for _attribute_ MQTT requests, optionally using _name_ as a suffix. Setting
+    an attribute with _name_ to NULL registers the main `/cmd` command,
+    otherwise a attribute with `/cmd/name` is registered.
 *   ***`mgos_homeassistant_object_get_status()`*** assembles a _status_ JSON
     structure of the object, including its classes (see below). Status elements
     themselves are provided by callback functions at object/class creation

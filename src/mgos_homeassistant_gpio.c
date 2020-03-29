@@ -453,7 +453,7 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
 
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SWITCH, "\"value_template\":\"{{ value_json.state }}\"", switch_stat, user_data);
   if (!o) goto exit;
-  mgos_homeassistant_object_set_cmd_cb(o, switch_cmd_cb);
+  mgos_homeassistant_object_add_cmd_cb(o, NULL, switch_cmd_cb);
   mgos_homeassistant_object_add_cmd_cb(o, "schedule", switch_cmd_schedule_cb);
 
   if (!mgos_gpio_setup_output(user_data->gpio, user_data->invert ? 1 : 0)) {
