@@ -396,9 +396,9 @@ static void switch_cmd_schedule_get_cb(struct mgos_homeassistant_object *o, cons
   if (d->schedule_timespec) {
     char ts_str[100];
     timespec_get_spec(d->schedule_timespec, ts_str, sizeof(ts_str));
-    mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "timespec", "get", ts_str, d->schedule_override);
+    mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "schedule", "get", ts_str, d->schedule_override);
   } else {
-    mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "timespec", "get", NULL, d->schedule_override);
+    mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "schedule", "get", NULL, d->schedule_override);
   }
 
   (void) payload;
@@ -418,7 +418,7 @@ static void switch_cmd_schedule_cb(struct mgos_homeassistant_object *o, const ch
   if (payload_len == 0) {
     if (d->schedule_timespec) {
       LOG(LL_INFO, ("Removing schedule on object '%s'", o->object_name));
-      mgos_homeassistant_object_log(o, "{type:%Q,action:%Q}", "timespec", "remove");
+      mgos_homeassistant_object_log(o, "{type:%Q,action:%Q}", "schedule", "remove");
       mgos_clear_timer(d->schedule_timer);
       d->schedule_timer = 0;
       timespec_destroy(&d->schedule_timespec);
@@ -442,7 +442,7 @@ static void switch_cmd_schedule_cb(struct mgos_homeassistant_object *o, const ch
 
   LOG(LL_INFO, ("%s schedule on object '%s' with timespec '%s' and setting switch override to %s", d->schedule_timespec ? "Replacing" : "Setting",
                 o->object_name, j_timespec, j_override ? "true" : "false"));
-  mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "timespec", d->schedule_timespec ? "replace" : "set", j_timespec,
+  mgos_homeassistant_object_log(o, "{type:%Q,action:%Q,timespec:%Q,override:%B}", "schedule", d->schedule_timespec ? "replace" : "set", j_timespec,
                                 j_override);
 
   if (d->schedule_timespec) timespec_destroy(&d->schedule_timespec);
