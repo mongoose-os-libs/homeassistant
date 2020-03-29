@@ -114,14 +114,9 @@ static struct mgos_homeassistant_object_cmd *mgos_homeassistant_object_get_cmd(s
   if (!o) return NULL;
 
   SLIST_FOREACH(c, &o->cmds, entry) {
-    if (c->cmd_name == NULL) {
-      if (s == NULL)
-        return c;
-      else
-        continue;
-    } else {
-      if (0 == strcasecmp(s, c->cmd_name)) return c;
-    }
+    if (c->cmd_name == NULL && s == NULL) return c;
+    if (c->cmd_name == NULL || s == NULL) continue;
+    if (0 == strcasecmp(s, c->cmd_name)) return c;
   }
   return NULL;
 }
@@ -131,14 +126,9 @@ static struct mgos_homeassistant_object_attr *mgos_homeassistant_object_get_attr
   if (!o) return NULL;
 
   SLIST_FOREACH(a, &o->attrs, entry) {
-    if (a->attr_name == NULL) {
-      if (s == NULL)
-        return a;
-      else
-        continue;
-    } else {
-      if (0 == strcasecmp(s, a->attr_name)) return a;
-    }
+    if (c->attr_name == NULL && s == NULL) return c;
+    if (c->attr_name == NULL || s == NULL) continue;
+    if (0 == strcasecmp(s, c->attr_name)) return c;
   }
   return NULL;
 }
