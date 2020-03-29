@@ -10,6 +10,16 @@ name but a few.
 All types of object are configured automatically in Home Assistant, with zero
 configuration!
 
+***NOTE***: This library is a work in progress, and considered **alpha**. This
+means that it will change over time, including backwards incompatible
+(breaking) changes. Until this notice is removed, the author recommends not
+using the library in production!
+
+***NOTE***: Documentation for the higher level API and automations are not
+ready to be published yet, mostly because there will be a few changes to the
+implementation before it's ready. Please exercise patience until this notice
+is removed.
+
 ## API
 
 ### Low Level API
