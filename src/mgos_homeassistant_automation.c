@@ -77,7 +77,7 @@ static bool action_command(struct mgos_homeassistant *ha, struct mgos_homeassist
     return false;
   }
 
-  LOG(LL_INFO, ("Action: Command object='%s' command='%s' payload='%s'", data->object, data->cmd_name?data->cmd_name:"(default)", data->payload));
+  LOG(LL_INFO, ("Action: Command object='%s' command='%s' payload='%s'", data->object, data->cmd_name ? data->cmd_name : "(default)", data->payload));
   mgos_homeassistant_object_cmd(o, data->cmd_name, data->payload, strlen(data->payload));
 
   return true;
