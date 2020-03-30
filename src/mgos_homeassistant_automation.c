@@ -23,6 +23,23 @@
 #include "mgos_homeassistant_api.h"
 #include "mgos_mqtt.h"
 
+static char *strstrn(const char *haystack, const char *needle, size_t slen) {
+  char c, sc;
+  size_t len;
+
+  if ((c = *needle++) != 0) {
+    len = strlen(needle);
+    do {
+      do {
+        if (slen-- < 1 || (sc = *haystack++) == 0) return (NULL);
+      } while (sc != c);
+      if (len > slen) return (NULL);
+    } while (strncmp(haystack, needle, len) != 0);
+    haystack--;
+  }
+  return ((char *) haystack);
+}
+
 static bool trigger_status(struct mgos_homeassistant *ha, struct mgos_homeassistant_automation_data_status *trigger_data,
                            struct mgos_homeassistant_automation_data_status *data) {
   struct mgos_homeassistant_object *o;
@@ -40,7 +57,7 @@ static bool trigger_status(struct mgos_homeassistant *ha, struct mgos_homeassist
     return false;
   }
 
-  p = strstr(o->status.buf, data->status);
+  p = strstrn(o->status.buf, data->status, o->status.len);
   LOG(LL_DEBUG,
       ("Trigger: Object('%s').status='%.*s' %s= data('%s')", o->object_name, (int) o->status.len, o->status.buf, p ? "" : "!", data->status));
 
@@ -54,7 +71,7 @@ static bool condition_status(struct mgos_homeassistant *ha, struct mgos_homeassi
   if (!ha || !data) return true;
   if (!(o = mgos_homeassistant_object_get(ha, data->object))) return true;
 
-  p = strstr(o->status.buf, data->status);
+  p = strstrn(o->status.buf, data->status, o->status.len);
   LOG(LL_DEBUG,
       ("Condition: Object('%s').status='%.*s' %s= data('%s')", o->object_name, (int) o->status.len, o->status.buf, p ? "" : "!", data->status));
 
