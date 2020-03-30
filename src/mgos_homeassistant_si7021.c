@@ -19,36 +19,42 @@
 
 #include <math.h>
 
-static void si7021_timer(void *ud) {
-  struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) ud;
+static void si7021_timer(void *user_data) {
+  struct mgos_homeassistant_object *o = (struct mgos_homeassistant_object *) user_data;
   if (!o) return;
   mgos_homeassistant_object_send_status(o);
 }
 
 static void si7021_stat_humidity(struct mgos_homeassistant_object *o, struct json_out *json) {
-  struct mgos_si7021 *sensor = NULL;
+  struct mgos_homeassistant_si7021 *d = NULL;
   float humidity = NAN;
 
   if (!o || !json) return;
+  if (!(d = (struct mgos_homeassistant_si7021 *) o->user_data)) return;
 
-  sensor = (struct mgos_si7021 *) o->user_data;
-  if (!sensor) return;
-
-  humidity = mgos_si7021_getHumidity(sensor);
+  humidity = mgos_si7021_getHumidity(d->dev);
   json_printf(json, "%.1f", humidity);
 }
 
 static void si7021_stat_temperature(struct mgos_homeassistant_object *o, struct json_out *json) {
-  struct mgos_si7021 *sensor = NULL;
+  struct mgos_homeassistant_si7021 *d = NULL;
   float temperature = NAN;
 
   if (!o || !json) return;
+  if (!(d = (struct mgos_homeassistant_si7021 *) o->user_data)) return;
 
-  sensor = (struct mgos_si7021 *) o->user_data;
-  if (!sensor) return;
-
-  temperature = mgos_si7021_getTemperature(sensor);
+  temperature = mgos_si7021_getTemperature(d->dev);
   json_printf(json, "%.2f", temperature);
+}
+
+static void si7021_pre_remove_cb(struct mgos_homeassistant_object *o) {
+  struct mgos_homeassistant_si7021 *d = NULL;
+  if (!o) return;
+  if (!(d = (struct mgos_homeassistant_si7021 *) o->user_data)) return;
+  mgos_clear_timer(d->timer);
+  if (d->dev) mgos_si7021_destroy(&d->dev);
+  free(o->user_data);
+  o->user_data = NULL;
 }
 
 bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct json_token val) {
@@ -56,16 +62,17 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct js
   int period = 60;
   bool ret = false;
   struct mgos_homeassistant_object *o = NULL;
-  struct mgos_si7021 *user_data = NULL;
+  struct mgos_homeassistant_si7021 *d = NULL;
   char object_name[20];
   char *name = NULL;
   char *nameptr = NULL;
 
   if (!ha) goto exit;
+  if (!(d = calloc(1, sizeof(*d)))) goto exit;
 
   json_scanf(val.ptr, val.len, "{i2caddr:%d,period:%d,name:%Q}", &i2caddr, &period, &name);
-  user_data = mgos_si7021_create(mgos_i2c_get_global(), i2caddr);
-  if (!user_data) {
+  d->dev = mgos_si7021_create(mgos_i2c_get_global(), i2caddr);
+  if (!d->dev) {
     LOG(LL_ERROR, ("Could not create si7021 at i2caddr=%d", i2caddr));
     goto exit;
   }
@@ -77,11 +84,12 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct js
     nameptr = name;
   }
 
-  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL, user_data);
+  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL, d);
   if (!o) {
     LOG(LL_ERROR, ("Could not add object %s to homeassistant", nameptr));
     goto exit;
   }
+  o->pre_remove_cb = si7021_pre_remove_cb;
 
   if (!mgos_homeassistant_object_class_add(o, "humidity", "\"unit_of_measurement\":\"%\"", si7021_stat_humidity)) {
     LOG(LL_ERROR, ("Could not add 'humidity' class to object %s", nameptr));
@@ -92,12 +100,13 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct js
     goto exit;
   }
 
-  if (period > 0) mgos_set_timer(period * 1000, true, si7021_timer, o);
+  if (period > 0) d->timer = mgos_set_timer(period * 1000, true, si7021_timer, o);
 
   ret = true;
   LOG(LL_DEBUG, ("Successfully created object %s", nameptr));
 exit:
   if (name) free(name);
+  if (!ret) si7021_pre_remove_cb(o);
   return ret;
 }
 

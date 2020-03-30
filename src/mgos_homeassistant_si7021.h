@@ -19,5 +19,10 @@
 #include "mgos_homeassistant.h"
 #include "mgos_si7021.h"
 
+struct mgos_homeassistant_si7021 {
+  struct mgos_si7021 *dev;
+  mgos_timer_id timer;
+};
+
 bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct json_token val);
 #endif  // MGOS_HAVE_SI7021_I2C

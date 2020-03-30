@@ -26,40 +26,44 @@ static void barometer_timer(void *ud) {
 }
 
 static void barometer_stat_humidity(struct mgos_homeassistant_object *o, struct json_out *json) {
-  struct mgos_barometer *sensor = NULL;
+  struct mgos_homeassistant_barometer *d = NULL;
   float humidity = NAN;
 
   if (!o || !json) return;
+  if (!(d = (struct mgos_homeassistant_barometer *) o->user_data)) return;
 
-  sensor = (struct mgos_barometer *) o->user_data;
-  if (!sensor) return;
-
-  if (mgos_barometer_get_humidity(sensor, &humidity)) json_printf(json, "%.1f", humidity);
+  if (mgos_barometer_get_humidity(d->dev, &humidity)) json_printf(json, "%.1f", humidity);
 }
 
 static void barometer_stat_temperature(struct mgos_homeassistant_object *o, struct json_out *json) {
-  struct mgos_barometer *sensor = NULL;
+  struct mgos_homeassistant_barometer *d = NULL;
   float temperature = NAN;
 
   if (!o || !json) return;
+  if (!(d = (struct mgos_homeassistant_barometer *) o->user_data)) return;
 
-  sensor = (struct mgos_barometer *) o->user_data;
-  if (!sensor) return;
-
-  if (mgos_barometer_get_temperature(sensor, &temperature)) json_printf(json, "%.2f", temperature);
+  if (mgos_barometer_get_temperature(d->dev, &temperature)) json_printf(json, "%.2f", temperature);
 }
 
 static void barometer_stat_pressure(struct mgos_homeassistant_object *o, struct json_out *json) {
-  struct mgos_barometer *sensor = NULL;
+  struct mgos_homeassistant_barometer *d = NULL;
   float pressure = NAN;
 
   if (!o || !json) return;
-
-  sensor = (struct mgos_barometer *) o->user_data;
-  if (!sensor) return;
+  if (!(d = (struct mgos_homeassistant_barometer *) o->user_data)) return;
 
   // Report pressure as hPa.
-  if (mgos_barometer_get_pressure(sensor, &pressure)) json_printf(json, "%.2f", pressure / 100.);
+  if (mgos_barometer_get_pressure(d->dev, &pressure)) json_printf(json, "%.2f", pressure / 100.);
+}
+
+static void barometer_pre_remove_cb(struct mgos_homeassistant_object *o) {
+  struct mgos_homeassistant_barometer *d = NULL;
+  if (!o) return;
+  if (!(d = (struct mgos_homeassistant_barometer *) o->user_data)) return;
+  mgos_clear_timer(d->timer);
+  if (d->dev) mgos_barometer_destroy(&d->dev);
+  if (d) free(d);
+  o->user_data = NULL;
 }
 
 bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct json_token val) {
@@ -67,7 +71,7 @@ bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct
   int period = 60;
   bool ret = false;
   struct mgos_homeassistant_object *o = NULL;
-  struct mgos_barometer *user_data = NULL;
+  struct mgos_homeassistant_barometer *d = NULL;
   enum mgos_barometer_type baro_type;
   char object_name[20];
   char *name = NULL;
@@ -94,9 +98,9 @@ bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct
   else {
     goto exit;
   }
+  if (!(d = calloc(1, sizeof(*d)))) goto exit;
 
-  user_data = mgos_barometer_create_i2c(mgos_i2c_get_global(), i2caddr, baro_type);
-  if (!user_data) {
+  if (!(d->dev = mgos_barometer_create_i2c(mgos_i2c_get_global(), i2caddr, baro_type))) {
     LOG(LL_ERROR, ("Could not create barometer of type %s at i2caddr %d", type, i2caddr));
     goto exit;
   }
@@ -108,39 +112,41 @@ bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct
     nameptr = name;
   }
 
-  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL, user_data);
+  o = mgos_homeassistant_object_add(ha, nameptr, COMPONENT_SENSOR, NULL, NULL, d);
   if (!o) {
     LOG(LL_ERROR, ("Could not add object %s to homeassistant", nameptr));
     goto exit;
   }
+  o->pre_remove_cb = barometer_pre_remove_cb;
 
   float value = NAN;
-  if (mgos_barometer_get_humidity(user_data, &value)) {
+  if (mgos_barometer_get_humidity(d->dev, &value)) {
     if (!mgos_homeassistant_object_class_add(o, "humidity", "\"unit_of_measurement\":\"%\"", barometer_stat_humidity)) {
       LOG(LL_ERROR, ("Could not add 'humidity' class to object %s", nameptr));
       goto exit;
     }
   }
-  if (mgos_barometer_get_temperature(user_data, &value)) {
+  if (mgos_barometer_get_temperature(d->dev, &value)) {
     if (!mgos_homeassistant_object_class_add(o, "temperature", "\"unit_of_measurement\":\"°C\"", barometer_stat_temperature)) {
       LOG(LL_ERROR, ("Could not add 'temperature' class to object %s", nameptr));
       goto exit;
     }
   }
-  if (mgos_barometer_get_pressure(user_data, &value)) {
+  if (mgos_barometer_get_pressure(d->dev, &value)) {
     if (!mgos_homeassistant_object_class_add(o, "pressure", "\"unit_of_measurement\":\"hPa\"", barometer_stat_pressure)) {
       LOG(LL_ERROR, ("Could not add 'pressure' class to object %s", nameptr));
       goto exit;
     }
   }
 
-  if (period > 0) mgos_set_timer(period * 1000, true, barometer_timer, o);
+  if (period > 0) d->timer = mgos_set_timer(period * 1000, true, barometer_timer, o);
 
   ret = true;
   LOG(LL_DEBUG, ("Successfully created object %s", nameptr));
 exit:
   if (name) free(name);
   if (type) free(type);
+  if (!ret) barometer_pre_remove_cb(o);
   return ret;
 }
 

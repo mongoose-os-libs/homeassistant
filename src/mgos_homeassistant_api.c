@@ -609,6 +609,8 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
 
   LOG(LL_DEBUG, ("Removing object '%s' from node '%s'", (*o)->object_name, (*o)->ha->node_name));
   mgos_homeassistant_call_handlers((*o)->ha, MGOS_HOMEASSISTANT_EV_OBJECT_REMOVE, *o);
+  if ((*o)->pre_remove_cb) (*o)->pre_remove_cb(*o);
+  if ((*o)->user_data) LOG(LL_WARN, ("Object '%s' still has user_data, pre_remove_cb() should clean that up!", (*o)->object_name));
 
   while (!SLIST_EMPTY(&(*o)->classes)) {
     struct mgos_homeassistant_object_class *c;

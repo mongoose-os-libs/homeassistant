@@ -21,5 +21,10 @@
 #include "mgos_barometer.h"
 #include "mgos_homeassistant.h"
 
+struct mgos_homeassistant_barometer {
+  struct mgos_barometer *dev;
+  mgos_timer_id timer;
+};
+
 bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct json_token val);
 #endif  // MGOS_HAVE_BAROMETER

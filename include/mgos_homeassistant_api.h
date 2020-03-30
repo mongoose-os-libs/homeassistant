@@ -54,6 +54,7 @@ enum mgos_homeassistant_component {
 #define MGOS_HOMEASSISTANT_EV_CLASS_REMOVE 31    // ev_data: struct mgos_homeassistant_object_class *
 #define MGOS_HOMEASSISTANT_EV_AUTOMATION_RUN 40  // ev_data: struct mgos_homeassistant_automation *
 
+typedef void (*ha_object_cb)(struct mgos_homeassistant_object *o);
 typedef void (*ha_status_cb)(struct mgos_homeassistant_object *o, struct json_out *json);
 typedef void (*ha_cmd_cb)(struct mgos_homeassistant_object *o, const char *payload, const int payload_len);
 typedef void (*ha_attr_cb)(struct mgos_homeassistant_object *o, const char *payload, const int payload_len);
@@ -92,6 +93,7 @@ struct mgos_homeassistant_object {
   char *json_config_additional_payload;
 
   ha_status_cb status_cb;
+  ha_object_cb pre_remove_cb;
   SLIST_HEAD(cmds, mgos_homeassistant_object_cmd) cmds;
   SLIST_HEAD(attrs, mgos_homeassistant_object_attr) attrs;
   void *user_data;

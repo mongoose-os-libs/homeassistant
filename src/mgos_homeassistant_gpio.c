@@ -457,6 +457,17 @@ exit:
   return;
 }
 
+static void switch_pre_remove_cb(struct mgos_homeassistant_object *o) {
+  struct mgos_homeassistant_gpio_switch *d = NULL;
+
+  if (!o) return;
+  if (!(d = (struct mgos_homeassistant_gpio_switch *) o->user_data)) return;
+  if (d->schedule_timer) mgos_clear_timer(d->schedule_timer);
+  if (d->schedule_timespec) timespec_destroy(&d->schedule_timespec);
+  free(o->user_data);
+  o->user_data = NULL;
+}
+
 static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *ha, const char *object_name, int gpio, struct json_token val) {
   struct mgos_homeassistant_gpio_switch *user_data = calloc(1, sizeof(*user_data));
   struct mgos_homeassistant_object *o = NULL;
@@ -476,6 +487,7 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
   mgos_homeassistant_object_add_cmd_cb(o, NULL, switch_cmd_cb);
   mgos_homeassistant_object_add_cmd_cb(o, "schedule", switch_cmd_schedule_cb);
   mgos_homeassistant_object_add_cmd_cb(o, "schedule/get", switch_cmd_schedule_get_cb);
+  o->pre_remove_cb = switch_pre_remove_cb;
 
   if (!mgos_gpio_setup_output(user_data->gpio, user_data->invert ? 1 : 0)) {
     LOG(LL_ERROR, ("Failed to initialize GPIO switch: gpio=%d invert=%d", user_data->gpio, user_data->invert));
