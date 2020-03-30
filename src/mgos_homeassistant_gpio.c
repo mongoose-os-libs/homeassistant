@@ -89,6 +89,7 @@ static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *h
   char *j_pull = NULL;
   int j_invert = false;
   int pull = MGOS_GPIO_PULL_NONE;
+  bool ret = false;
 
   if (!user_data || !ha) return false;
 
@@ -108,16 +109,19 @@ static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *h
   } else {
     pull = j_invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN;
   }
-  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR,
-                                    "\"payload_on\":true,\"payload_off\":false,\"value_template\":\"{{ "
-                                    "value_json.motion }}\",\"device_class\":\"motion\"",
-                                    motion_stat, user_data);
+  if (!(o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR,
+                                          "\"payload_on\":true,\"payload_off\":false,\"value_template\":\"{{ "
+                                          "value_json.motion }}\",\"device_class\":\"motion\"",
+                                          motion_stat, user_data)))
+    goto exit;
   o->pre_remove_cb = motion_pre_remove_cb;
   mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, motion_button_cb, o);
 
+  ret = true;
+exit:
   if (j_pull) free(j_pull);
-
-  return true;
+  if (!ret) motion_pre_remove_cb(o);
+  return ret;
 }
 
 static void momentary_stat(struct mgos_homeassistant_object *o, struct json_out *json) {
@@ -195,8 +199,9 @@ static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant
   json_scanf(val.ptr, val.len, "{invert:%B, debounce:%d, timeout:%d, pull:%Q}", &user_data->invert, &user_data->debounce_ms, &user_data->timeout_ms,
              &j_pull);
 
-  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SENSOR, "\"value_template\": \"{{ value_json.action }}\"", momentary_stat, user_data);
-  if (!o) goto exit;
+  if (!(o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SENSOR, "\"value_template\": \"{{ value_json.action }}\"", momentary_stat,
+                                          user_data)))
+    goto exit;
   o->pre_remove_cb = binary_sensor_pre_remove_cb;
 
   if (j_pull) {
@@ -221,6 +226,7 @@ static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant
   ret = true;
 exit:
   if (j_pull) free(j_pull);
+  if (!ret) binary_sensor_pre_remove_cb(o);
   return ret;
 }
 
@@ -276,9 +282,9 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(struct mgos_homeassistant *h
     pull = user_data->invert ? MGOS_GPIO_PULL_UP : MGOS_GPIO_PULL_DOWN;
   }
 
-  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR, "\"value_template\": \"{{ value_json.state }}\"", toggle_stat,
-                                    user_data);
-  if (!o) goto exit;
+  if (!(o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR, "\"value_template\": \"{{ value_json.state }}\"", toggle_stat,
+                                          user_data)))
+    goto exit;
   o->pre_remove_cb = binary_sensor_pre_remove_cb;
 
   if (!mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, toggle_button_cb, o)) {
@@ -291,6 +297,7 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(struct mgos_homeassistant *h
   ret = true;
 exit:
   if (j_pull) free(j_pull);
+  if (!ret) binary_sensor_pre_remove_cb(o);
   return ret;
 }
 
@@ -508,8 +515,9 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
   user_data->schedule_timer = 0;
   json_scanf(val.ptr, val.len, "{invert:%B}", &user_data->invert);
 
-  o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SWITCH, "\"value_template\":\"{{ value_json.state }}\"", switch_stat, user_data);
-  if (!o) goto exit;
+  if (!(o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SWITCH, "\"value_template\":\"{{ value_json.state }}\"", switch_stat,
+                                          user_data)))
+    goto exit;
   mgos_homeassistant_object_add_cmd_cb(o, NULL, switch_cmd_cb);
   mgos_homeassistant_object_add_cmd_cb(o, "schedule", switch_cmd_schedule_cb);
   mgos_homeassistant_object_add_cmd_cb(o, "schedule/get", switch_cmd_schedule_get_cb);
@@ -524,6 +532,7 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
 
   ret = true;
 exit:
+  if (!ret) switch_pre_remove_cb(o);
   return ret;
 }
 
@@ -562,14 +571,17 @@ bool mgos_homeassistant_gpio_fromjson(struct mgos_homeassistant *ha, struct json
   } else if (0 == strcasecmp("momentary", j_type)) {
     if (!mgos_homeassistant_gpio_momentary_fromjson(ha, name, j_gpio, val)) {
       LOG(LL_WARN, ("Failed to add momentary object for provider gpio, skipping .."));
+      goto exit;
     }
   } else if (0 == strcasecmp("toggle", j_type)) {
     if (!mgos_homeassistant_gpio_toggle_fromjson(ha, name, j_gpio, val)) {
       LOG(LL_WARN, ("Failed to add toggle object for provider gpio, skipping .."));
+      goto exit;
     }
   } else if (0 == strcasecmp("switch", j_type)) {
     if (!mgos_homeassistant_gpio_switch_fromjson(ha, name, j_gpio, val)) {
       LOG(LL_WARN, ("Failed to add switch object for provider gpio, skipping .."));
+      goto exit;
     }
   }
 
