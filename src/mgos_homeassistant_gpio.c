@@ -70,6 +70,17 @@ static void motion_button_cb(int gpio, void *ud) {
   }
 }
 
+static void motion_pre_remove_cb(struct mgos_homeassistant_object *o) {
+  struct mgos_homeassistant_gpio_motion *d = NULL;
+
+  if (!o) return;
+  if (!(d = (struct mgos_homeassistant_gpio_motion *) o->user_data)) return;
+  mgos_gpio_set_button_handler(d->gpio, MGOS_GPIO_PULL_NONE, MGOS_GPIO_INT_EDGE_ANY, d->debounce_ms, NULL, NULL);
+  if (d->timer) mgos_clear_timer(d->timer);
+  free(o->user_data);
+  o->user_data = NULL;
+}
+
 static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *ha, const char *object_name, int gpio, struct json_token val) {
   struct mgos_homeassistant_gpio_motion *user_data = calloc(1, sizeof(*user_data));
   struct mgos_homeassistant_object *o = NULL;
@@ -101,6 +112,7 @@ static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *h
                                     "\"payload_on\":true,\"payload_off\":false,\"value_template\":\"{{ "
                                     "value_json.motion }}\",\"device_class\":\"motion\"",
                                     motion_stat, user_data);
+  o->pre_remove_cb = motion_pre_remove_cb;
   mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, motion_button_cb, o);
 
   if (j_pull) free(j_pull);
@@ -156,6 +168,17 @@ static void momentary_button_cb(int gpio, void *user_data) {
   d->click_timer = mgos_set_timer(d->timeout_ms, 0, momentary_timer_cb, o);
 }
 
+static void binary_sensor_pre_remove_cb(struct mgos_homeassistant_object *o) {
+  struct mgos_homeassistant_gpio_binary_sensor *d = NULL;
+
+  if (!o) return;
+  if (!(d = (struct mgos_homeassistant_gpio_binary_sensor *) o->user_data)) return;
+  mgos_gpio_set_button_handler(d->gpio, MGOS_GPIO_PULL_NONE, MGOS_GPIO_INT_EDGE_ANY, d->debounce_ms, NULL, NULL);
+  mgos_clear_timer(d->click_timer);
+  free(o->user_data);
+  o->user_data = NULL;
+}
+
 static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant *ha, const char *object_name, int gpio, struct json_token val) {
   struct mgos_homeassistant_gpio_binary_sensor *user_data = calloc(1, sizeof(*user_data));
   struct mgos_homeassistant_object *o = NULL;
@@ -174,6 +197,8 @@ static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant
 
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_SENSOR, "\"value_template\": \"{{ value_json.action }}\"", momentary_stat, user_data);
   if (!o) goto exit;
+  o->pre_remove_cb = binary_sensor_pre_remove_cb;
+
   if (j_pull) {
     if (0 == strcasecmp(j_pull, "up"))
       pull = MGOS_GPIO_PULL_UP;
@@ -254,6 +279,7 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(struct mgos_homeassistant *h
   o = mgos_homeassistant_object_add(ha, object_name, COMPONENT_BINARY_SENSOR, "\"value_template\": \"{{ value_json.state }}\"", toggle_stat,
                                     user_data);
   if (!o) goto exit;
+  o->pre_remove_cb = binary_sensor_pre_remove_cb;
 
   if (!mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, toggle_button_cb, o)) {
     LOG(LL_ERROR, ("Failed to initialize GPIO toggle: gpio=%d invert=%d debounce=%d pull=%d", user_data->gpio, user_data->invert,
