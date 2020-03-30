@@ -26,11 +26,9 @@
 static struct mgos_homeassistant *s_homeassistant = NULL;
 
 static void mgos_homeassistant_mqtt_connect(struct mg_connection *nc, const char *client_id, struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
-  char payload[100];
-  snprintf(payload, sizeof(payload), "offline");
-  LOG(LL_DEBUG, ("Setting will topic='%s' payload='%s', for when we disconnect", mgos_sys_config_get_device_id(), payload));
-  opts->will_topic = strdup(mgos_sys_config_get_device_id());
-  opts->will_message = strdup(payload);
+  LOG(LL_DEBUG, ("Setting will topic='%s' payload='offline', for when we disconnect", mgos_sys_config_get_device_id()));
+  opts->will_topic = mgos_sys_config_get_device_id();
+  opts->will_message = "offline";
   opts->flags |= MG_MQTT_WILL_RETAIN;
   mg_send_mqtt_handshake_opt(nc, client_id, *opts);
   (void) fn_arg;
