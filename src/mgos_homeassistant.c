@@ -56,7 +56,7 @@ static bool mgos_homeassistant_automation_run_status(struct mgos_homeassistant_o
   if (!o || !o->ha) return false;
 
   d.object = o->object_name;
-  o->status.buf[o->status.len] = 0;
+  mbuf_append(&o->status, "\0", 1);
   d.status = o->status.buf;
   LOG(LL_DEBUG, ("Running automations for trigger object=%s status=%s", d.object, d.status));
 

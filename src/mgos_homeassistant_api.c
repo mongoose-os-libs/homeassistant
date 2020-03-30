@@ -156,8 +156,7 @@ static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_obj
     mbuf_append(m, "_", 1);
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
-  mbuf_append(m, "/config", 7);
-  m->buf[m->len] = 0;
+  mbuf_append(m, "/config\0", 8);
   return m->buf;
 }
 
@@ -344,8 +343,7 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_home
   struct mbuf mbuf_topic;
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
-  mbuf_append(&mbuf_topic, "/#", 2);
-  mbuf_topic.buf[mbuf_topic.len] = 0;
+  mbuf_append(&mbuf_topic, "/#\0", 3);
   mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
   mbuf_free(&mbuf_topic);
 
@@ -496,7 +494,7 @@ bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o) 
 
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
-  mbuf_topic.buf[mbuf_topic.len] = 0;
+  mbuf_append(&mbuf_topic, "\0", 1);
 
   mgos_homeassistant_object_get_status(o);
 
@@ -515,8 +513,7 @@ bool mgos_homeassistant_object_log(struct mgos_homeassistant_object *o, const ch
   if (!o) return false;
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
-  mbuf_append(&mbuf_topic, "/log", 4);
-  mbuf_topic.buf[mbuf_topic.len] = 0;
+  mbuf_append(&mbuf_topic, "/log\0", 5);
 
   va_start(ap, json_fmt);
   mgos_mqtt_pubv(mbuf_topic.buf, 0, false, json_fmt, ap);
