@@ -206,28 +206,25 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *top
   if ((topic_len >= (int) mbuf_topic.len) && (0 == strncasecmp(topic, mbuf_topic.buf, mbuf_topic.len))) {
     int cmd_len = topic_len - mbuf_topic.len;
     const char *cmdp = topic + mbuf_topic.len;
+    mbuf_free(&mbuf_topic);
 
     if (!cmdp || (cmd_len == 0)) {
       LOG(LL_DEBUG, ("Issuing command '(default)' on object '%s'", o->object_name));
-      mbuf_free(&mbuf_topic);
       mgos_homeassistant_object_cmd(o, NULL, msg, msg_len);
       return;
     }
     if (*cmdp != '/') {
       LOG(LL_ERROR, ("Malformed command path, expecting '/'"));
-      mbuf_free(&mbuf_topic);
       return;
     }
     cmd_len--;
     cmdp++;  // chop of '/'
     if (cmd_len == 0) {
       LOG(LL_DEBUG, ("Issuing command '(default)' on object '%s'", o->object_name));
-      mbuf_free(&mbuf_topic);
       mgos_homeassistant_object_cmd(o, NULL, msg, msg_len);
       return;
     }
     LOG(LL_DEBUG, ("Issuing command '%.*s' on object '%s'", (int) cmd_len, cmdp, o->object_name));
-    mbuf_free(&mbuf_topic);
 
     // mgos_homeassistant_object_cmd() expects NULL terminated string.
     char *cmd = malloc(cmd_len + 1);
@@ -243,27 +240,25 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *top
   if ((topic_len >= (int) mbuf_topic.len) && (0 == strncasecmp(topic, mbuf_topic.buf, mbuf_topic.len))) {
     int attr_len = topic_len - mbuf_topic.len;
     const char *attrp = topic + mbuf_topic.len;
+    mbuf_free(&mbuf_topic);
+
     if (!attrp || (attr_len == 0)) {
       LOG(LL_DEBUG, ("Issuing attribute '(default)' on object '%s'", o->object_name));
-      mbuf_free(&mbuf_topic);
       mgos_homeassistant_object_attr(o, NULL, msg, msg_len);
       return;
     }
     if (*attrp != '/') {
       LOG(LL_ERROR, ("Malformed attribute path, expecting '/'"));
-      mbuf_free(&mbuf_topic);
       return;
     }
     attr_len--;
     attrp++;  // chop of '/'
     if (attr_len == 0) {
       LOG(LL_DEBUG, ("Issuing attribute '(default)' on object '%s'", o->object_name));
-      mbuf_free(&mbuf_topic);
       mgos_homeassistant_object_attr(o, NULL, msg, msg_len);
       return;
     }
     LOG(LL_DEBUG, ("Issuing attribute '%.*s' on object '%s'", (int) attr_len, attrp, o->object_name));
-    mbuf_free(&mbuf_topic);
 
     // mgos_homeassistant_object_attr() expects NULL terminated string.
     char *attr = malloc(attr_len + 1);
@@ -273,6 +268,7 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *top
     free(attr);
     return;
   }
+  mbuf_free(&mbuf_topic);
   (void) nc;
 }
 
