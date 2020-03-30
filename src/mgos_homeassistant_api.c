@@ -144,6 +144,16 @@ bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, voi
   return true;
 }
 
+// Note: gen_topicprefix is not NULL terminated.
+static char *gen_topicprefix(struct mbuf *m, const struct mgos_homeassistant_object *o) {
+  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, ha_component_str(o->component), strlen(ha_component_str(o->component)));
+  mbuf_append(m, "/", 1);
+  mbuf_append(m, o->object_name, strlen(o->object_name));
+  return m->buf;
+}
+
 static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
   mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(), strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
   mbuf_append(m, "/", 1);
@@ -160,15 +170,6 @@ static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_obj
   return m->buf;
 }
 
-static char *gen_topicprefix(struct mbuf *m, const struct mgos_homeassistant_object *o) {
-  mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, ha_component_str(o->component), strlen(ha_component_str(o->component)));
-  mbuf_append(m, "/", 1);
-  mbuf_append(m, o->object_name, strlen(o->object_name));
-  return m->buf;
-}
-
 static char *gen_friendlyname(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
   mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
   mbuf_append(m, "_", 1);
@@ -177,6 +178,7 @@ static char *gen_friendlyname(struct mbuf *m, const struct mgos_homeassistant_ob
     mbuf_append(m, "_", 1);
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
+  mbuf_append(m, "\0", 1);
   return m->buf;
 }
 
