@@ -80,7 +80,14 @@ static void mgos_homeassistant_handler(struct mgos_homeassistant *ha, const int 
 }
 
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename) {
-  return mgos_homeassistant_fromjson(ha, json_fread(filename));
+  char *json = json_fread(filename);
+  bool ret = false;
+  if (!json) goto exit;
+  if (!mgos_homeassistant_fromjson(ha, json)) goto exit;
+  ret = true;
+exit:
+  if (json) free(json);
+  return ret;
 }
 
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json) {
