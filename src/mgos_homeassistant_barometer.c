@@ -146,7 +146,7 @@ bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct
 exit:
   if (name) free(name);
   if (type) free(type);
-  if (!ret) barometer_pre_remove_cb(o);
+  if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
 

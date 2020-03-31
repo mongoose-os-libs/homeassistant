@@ -120,7 +120,7 @@ static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *h
   ret = true;
 exit:
   if (j_pull) free(j_pull);
-  if (!ret) motion_pre_remove_cb(o);
+  if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
 
@@ -226,7 +226,7 @@ static bool mgos_homeassistant_gpio_momentary_fromjson(struct mgos_homeassistant
   ret = true;
 exit:
   if (j_pull) free(j_pull);
-  if (!ret) binary_sensor_pre_remove_cb(o);
+  if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
 
@@ -297,7 +297,7 @@ static bool mgos_homeassistant_gpio_toggle_fromjson(struct mgos_homeassistant *h
   ret = true;
 exit:
   if (j_pull) free(j_pull);
-  if (!ret) binary_sensor_pre_remove_cb(o);
+  if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
 
@@ -532,7 +532,7 @@ static bool mgos_homeassistant_gpio_switch_fromjson(struct mgos_homeassistant *h
 
   ret = true;
 exit:
-  if (!ret) switch_pre_remove_cb(o);
+  if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
 

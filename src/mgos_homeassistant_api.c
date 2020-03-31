@@ -612,6 +612,16 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   if ((*o)->pre_remove_cb) (*o)->pre_remove_cb(*o);
   if ((*o)->user_data) LOG(LL_WARN, ("Object '%s' still has user_data, pre_remove_cb() should clean that up!", (*o)->object_name));
 
+  /*
+   * TODO(pim): Uncomment once https://github.com/mongoose-os-libs/mqtt/pull/19 is in.
+  struct mbuf mbuf_topic;
+  mbuf_init(&mbuf_topic, 100);
+  gen_topicprefix(&mbuf_topic, *o);
+  mbuf_append(&mbuf_topic, "/#\0", 3);
+  mgos_mqtt_unsub(mbuf_topic.buf);
+  mbuf_free(&mbuf_topic);
+  */
+
   while (!SLIST_EMPTY(&(*o)->classes)) {
     struct mgos_homeassistant_object_class *c;
     c = SLIST_FIRST(&(*o)->classes);

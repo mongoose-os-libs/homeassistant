@@ -106,7 +106,7 @@ bool mgos_homeassistant_si7021_fromjson(struct mgos_homeassistant *ha, struct js
   LOG(LL_DEBUG, ("Successfully created object %s", nameptr));
 exit:
   if (name) free(name);
-  if (!ret) si7021_pre_remove_cb(o);
+  if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
 
