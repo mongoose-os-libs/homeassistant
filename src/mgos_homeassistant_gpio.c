@@ -115,7 +115,14 @@ static bool mgos_homeassistant_gpio_motion_fromjson(struct mgos_homeassistant *h
                                           motion_stat, user_data)))
     goto exit;
   o->pre_remove_cb = motion_pre_remove_cb;
-  mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, motion_button_cb, o);
+
+  if (!mgos_gpio_set_button_handler(user_data->gpio, pull, MGOS_GPIO_INT_EDGE_ANY, user_data->debounce_ms, motion_button_cb, o)) {
+    LOG(LL_ERROR, ("Failed to initialize GPIO motion: gpio=%d invert=%d debounce=%d timeout=%d pull=%d", user_data->gpio, user_data->invert,
+                   user_data->debounce_ms, user_data->timeout_secs, pull));
+    goto exit;
+  }
+  LOG(LL_DEBUG, ("New GPIO motion: gpio=%d invert=%d debounce=%d timeout=%d pull=%d", user_data->gpio, user_data->invert, user_data->debounce_ms,
+                 user_data->timeout_secs, pull));
 
   ret = true;
 exit:
