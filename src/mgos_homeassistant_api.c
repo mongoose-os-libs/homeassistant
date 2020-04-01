@@ -154,6 +154,7 @@ static char *gen_topicprefix(struct mbuf *m, const struct mgos_homeassistant_obj
   return m->buf;
 }
 
+// Note: gen_configtopic is not NULL terminated.
 static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
   mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(), strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
   mbuf_append(m, "/", 1);
@@ -166,10 +167,11 @@ static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_obj
     mbuf_append(m, "_", 1);
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
-  mbuf_append(m, "/config\0", 8);
+  mbuf_append(m, "/config", 7);
   return m->buf;
 }
 
+// Note: gen_friendlyname is not NULL terminated.
 static char *gen_friendlyname(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
   mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
   mbuf_append(m, "_", 1);
@@ -178,7 +180,6 @@ static char *gen_friendlyname(struct mbuf *m, const struct mgos_homeassistant_ob
     mbuf_append(m, "_", 1);
     mbuf_append(m, c->class_name, strlen(c->class_name));
   }
-  mbuf_append(m, "\0", 1);
   return m->buf;
 }
 
@@ -574,6 +575,7 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
   json_printf(&payload, "}");
 
   LOG(LL_DEBUG, ("Config: topic='%.*s' payload='%.*s'", (int) mbuf_topic.len, mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
+  mbuf_append(&mbuf_topic, "\0", 1);
   mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0, true);
 
   ret = true;
@@ -591,6 +593,7 @@ bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) 
   bool ret = false;
 
   if (!o || !o->ha) goto exit;
+  if (o->config_sent) goto exit;
 
   if (o->status_cb || mgos_homeassistant_object_get_cmd(o, NULL) || mgos_homeassistant_object_get_attr(o, NULL)) {
     done++;
@@ -677,6 +680,8 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(stru
   c->status_cb = status_cb;
   SLIST_INSERT_HEAD(&o->classes, c, entry);
 
+  // Force a config update to be sent upon next status
+  o->config_sent=false;
   mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_CLASS_ADD, c);
   LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name, c->object->object_name));
   return c;
