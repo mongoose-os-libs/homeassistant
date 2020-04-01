@@ -493,6 +493,11 @@ bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o) 
     LOG(LL_DEBUG, ("MQTT not connected, skipping status for %s", o->object_name));
     return false;
   }
+  if (!o->config_sent) mgos_homeassistant_object_send_config(o);
+  if (!o->config_sent) {
+    LOG(LL_WARN, ("Config hasn't been sent, skipping status for %s", o->object_name));
+    return false;
+  }
 
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
@@ -599,7 +604,7 @@ bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) 
 
   ret = (done == success);
   LOG(ret ? LL_DEBUG : LL_WARN, ("Sent %u configs (%u successfully) for object '%s'", done, success, o->object_name));
-
+  if (ret) o->config_sent = true;
 exit:
   return ret;
 }
@@ -612,15 +617,12 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   if ((*o)->pre_remove_cb) (*o)->pre_remove_cb(*o);
   if ((*o)->user_data) LOG(LL_WARN, ("Object '%s' still has user_data, pre_remove_cb() should clean that up!", (*o)->object_name));
 
-  /*
-   * TODO(pim): Uncomment once https://github.com/mongoose-os-libs/mqtt/pull/19 is in.
   struct mbuf mbuf_topic;
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, *o);
   mbuf_append(&mbuf_topic, "/#\0", 3);
   mgos_mqtt_unsub(mbuf_topic.buf);
   mbuf_free(&mbuf_topic);
-  */
 
   while (!SLIST_EMPTY(&(*o)->classes)) {
     struct mgos_homeassistant_object_class *c;

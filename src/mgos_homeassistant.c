@@ -150,6 +150,7 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json
     SLIST_INSERT_HEAD(&ha->automations, a, entry);
   }
 
+  mgos_homeassistant_send_config(ha);
   if (name) free(name);
   return true;
 }
