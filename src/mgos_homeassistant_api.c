@@ -681,7 +681,7 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(stru
   SLIST_INSERT_HEAD(&o->classes, c, entry);
 
   // Force a config update to be sent upon next status
-  o->config_sent=false;
+  o->config_sent = false;
   mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_CLASS_ADD, c);
   LOG(LL_DEBUG, ("Created class '%s' on object '%s'", c->class_name, c->object->object_name));
   return c;
