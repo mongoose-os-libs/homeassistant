@@ -347,7 +347,11 @@ struct mgos_homeassistant_object *mgos_homeassistant_object_add(struct mgos_home
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
   mbuf_append(&mbuf_topic, "/#\0", 3);
-  mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG, ("MQTT not connected, skipping subscription for %s", o->object_name));
+  } else {
+    mgos_mqtt_sub(mbuf_topic.buf, mgos_homeassistant_mqtt_cb, o);
+  }
   mbuf_free(&mbuf_topic);
 
   mgos_homeassistant_call_handlers(ha, MGOS_HOMEASSISTANT_EV_OBJECT_ADD, o);
@@ -490,26 +494,22 @@ bool mgos_homeassistant_object_send_status(struct mgos_homeassistant_object *o) 
   struct mbuf mbuf_topic;
 
   if (!o) return false;
-  if (!mgos_mqtt_global_is_connected()) {
-    LOG(LL_DEBUG, ("MQTT not connected, skipping status for %s", o->object_name));
-    return false;
-  }
   if (!o->config_sent) mgos_homeassistant_object_send_config(o);
-  if (!o->config_sent) {
-    LOG(LL_WARN, ("Config hasn't been sent, skipping status for %s", o->object_name));
-    return false;
-  }
 
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, o);
   mbuf_append(&mbuf_topic, "\0", 1);
 
   mgos_homeassistant_object_get_status(o);
+  mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_STATUS, o);
 
   LOG(LL_DEBUG, ("Status topic='%.*s' payload='%.*s'", (int) mbuf_topic.len, mbuf_topic.buf, (int) o->status.len, o->status.buf));
-  mgos_mqtt_pub((char *) mbuf_topic.buf, o->status.buf, o->status.len, 0, false);
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG, ("MQTT not connected, skipping status for %s", o->object_name));
+  } else {
+    mgos_mqtt_pub((char *) mbuf_topic.buf, o->status.buf, o->status.len, 0, false);
+  }
 
-  mgos_homeassistant_call_handlers(o->ha, MGOS_HOMEASSISTANT_EV_OBJECT_STATUS, o);
   if (mbuf_topic.size > 0) mbuf_free(&mbuf_topic);
   return true;
 }
@@ -524,7 +524,11 @@ bool mgos_homeassistant_object_log(struct mgos_homeassistant_object *o, const ch
   mbuf_append(&mbuf_topic, "/log\0", 5);
 
   va_start(ap, json_fmt);
-  mgos_mqtt_pubv(mbuf_topic.buf, 0, false, json_fmt, ap);
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG, ("MQTT not connected, skipping log for %s", o->object_name));
+  } else {
+    mgos_mqtt_pubv(mbuf_topic.buf, 0, false, json_fmt, ap);
+  }
   va_end(ap);
   mbuf_free(&mbuf_topic);
   return true;
@@ -576,7 +580,11 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
 
   LOG(LL_DEBUG, ("Config: topic='%.*s' payload='%.*s'", (int) mbuf_topic.len, mbuf_topic.buf, (int) mbuf_payload.len, mbuf_payload.buf));
   mbuf_append(&mbuf_topic, "\0", 1);
-  mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0, true);
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG, ("MQTT not connected, skipping config for %s", o->object_name));
+  } else {
+    mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0, true);
+  }
 
   ret = true;
 exit:
@@ -624,7 +632,11 @@ bool mgos_homeassistant_object_remove(struct mgos_homeassistant_object **o) {
   mbuf_init(&mbuf_topic, 100);
   gen_topicprefix(&mbuf_topic, *o);
   mbuf_append(&mbuf_topic, "/#\0", 3);
-  mgos_mqtt_unsub(mbuf_topic.buf);
+  if (!mgos_mqtt_global_is_connected()) {
+    LOG(LL_DEBUG, ("MQTT not connected, skipping unsubscribe for %s", (*o)->object_name));
+  } else {
+    mgos_mqtt_unsub(mbuf_topic.buf);
+  }
   mbuf_free(&mbuf_topic);
 
   while (!SLIST_EMPTY(&(*o)->classes)) {
