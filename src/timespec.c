@@ -258,7 +258,7 @@ bool timespec_get_spec(struct mgos_timespec *ts, char *ret, int retlen) {
   *ret = '\0';
 
   SLIST_FOREACH(t_spec, &ts->specs, entries) {
-    char spec_str[20];
+    char spec_str[25];
 
     snprintf(spec_str, sizeof(spec_str) - 1, "%02d:%02d:%02d-%02d:%02d:%02d", t_spec->start_h, t_spec->start_m, t_spec->start_s, t_spec->stop_h,
              t_spec->stop_m, t_spec->stop_s);
@@ -321,13 +321,13 @@ bool timespec_read_file(struct mgos_timespec *ts, const char *fn) {
   }
 
   if (fp_stat.st_size > 1024) {
-    LOG(LL_ERROR, ("File size of %s is larger than 1024 bytes (%u)", fn, (uint32_t) fp_stat.st_size));
+    LOG(LL_ERROR, ("File size of %s is larger than 1024 bytes (%lu)", fn, fp_stat.st_size));
     return false;
   }
 
   buf = malloc(fp_stat.st_size + 1);
   if (!buf) {
-    LOG(LL_ERROR, ("Could not malloc %u bytes for file %s", (uint32_t) fp_stat.st_size, fn));
+    LOG(LL_ERROR, ("Could not malloc %lu bytes for file %s", fp_stat.st_size, fn));
     return false;
   }
 
@@ -337,7 +337,7 @@ bool timespec_read_file(struct mgos_timespec *ts, const char *fn) {
     return false;
   }
   if (fp_stat.st_size != read(fd, buf, fp_stat.st_size)) {
-    LOG(LL_ERROR, ("Could not read %u bytes from %s", (uint32_t) fp_stat.st_size, fn));
+    LOG(LL_ERROR, ("Could not read %lu bytes from %s", fp_stat.st_size, fn));
     close(fd);
     free(buf);
     return false;
