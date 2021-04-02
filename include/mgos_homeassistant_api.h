@@ -121,6 +121,10 @@ struct mgos_homeassistant_handler {
   SLIST_ENTRY(mgos_homeassistant_handler) entry;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_add_handler(struct mgos_homeassistant *ha, ha_ev_handler ev_handler, void *user_data);
@@ -147,3 +151,7 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_get(stru
 bool mgos_homeassistant_object_class_send_status(struct mgos_homeassistant_object_class *c);
 bool mgos_homeassistant_object_class_send_config(struct mgos_homeassistant_object_class *c);
 bool mgos_homeassistant_object_class_remove(struct mgos_homeassistant_object_class **c);
+
+#ifdef __cplusplus
+}
+#endif
