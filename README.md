@@ -57,7 +57,7 @@ construction of objects and classes is described below.
     a command with `/cmd/name` is registered.
 *   ***`mgos_homeassistant_object_add_attr_cb()`*** adds a callback function
     for _attribute_ MQTT requests, optionally using _name_ as a suffix. Setting
-    an attribute with _name_ to NULL registers the main `/cmd` command,
+    an attribute with _name_ to NULL registers the main `/attr` command,
     otherwise a attribute with `/cmd/name` is registered.
 *   ***`mgos_homeassistant_object_get_status()`*** assembles a _status_ JSON
     structure of the object, including its classes (see below). Status elements
