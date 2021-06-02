@@ -285,7 +285,7 @@ static void mgos_homeassistant_mqtt_cb(struct mg_connection *nc, const char *top
   (void) nc;
 }
 
-bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
+bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha, bool force) {
   struct mgos_homeassistant_object *o;
   if (!ha) return false;
   int done = 0, success = 0;
@@ -294,6 +294,7 @@ bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha) {
 
   SLIST_FOREACH(o, &ha->objects, entry) {
     done++;
+    if (force) o->config_sent = false;
     if (mgos_homeassistant_object_send_config(o)) success++;
   }
   LOG((done == success) ? LL_DEBUG : LL_WARN, ("Sent %u configs (%u successfully) for node '%s'", done, success, ha->node_name));
