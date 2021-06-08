@@ -39,7 +39,7 @@ static void mgos_homeassistant_mqtt_ev(struct mg_connection *nc, int ev, void *e
     case MG_EV_MQTT_CONNACK: {
       mgos_mqtt_pub(mgos_sys_config_get_device_id(), "online", 6, 0, true);
       if (user_data) {
-        mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data);
+        mgos_homeassistant_send_config((struct mgos_homeassistant *) user_data, true);
         mgos_homeassistant_send_status((struct mgos_homeassistant *) user_data);
       }
       break;
@@ -150,7 +150,7 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json
     SLIST_INSERT_HEAD(&ha->automations, a, entry);
   }
 
-  mgos_homeassistant_send_config(ha);
+  mgos_homeassistant_send_config(ha, false);
   if (name) free(name);
   return true;
 }

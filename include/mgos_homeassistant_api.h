@@ -125,7 +125,7 @@ struct mgos_homeassistant_handler {
 extern "C" {
 #endif
 
-bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha);
+bool mgos_homeassistant_send_config(struct mgos_homeassistant *ha, bool force);
 bool mgos_homeassistant_send_status(struct mgos_homeassistant *ha);
 bool mgos_homeassistant_add_handler(struct mgos_homeassistant *ha, ha_ev_handler ev_handler, void *user_data);
 bool mgos_homeassistant_call_handlers(struct mgos_homeassistant *ha, int ev, void *ev_data);
