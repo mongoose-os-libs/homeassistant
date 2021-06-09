@@ -568,9 +568,11 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
               mbuf_friendlyname.buf);
   json_printf(&payload, ",unique_id:\"%s:%.*s\"", mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len, mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s\"", mgos_sys_config_get_device_id());
-  json_printf(&payload, ",stat_t:%Q", "~");
-  if (mgos_homeassistant_object_get_cmd(o, NULL)) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
-  if (mgos_homeassistant_object_get_attr(o, NULL)) json_printf(&payload, ",attr_t:%Q", "~/attr");
+  if (o->component != COMPONENT_CLIMATE) {
+    json_printf(&payload, ",stat_t:%Q", "~");
+    if (mgos_homeassistant_object_get_cmd(o, NULL)) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
+    if (mgos_homeassistant_object_get_attr(o, NULL)) json_printf(&payload, ",attr_t:%Q", "~/attr");
+  }
   if (c) {
     json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"", c->class_name, "value_json.", c->class_name);
     if (c->json_config_additional_payload) json_printf(&payload, ",%s", c->json_config_additional_payload);
