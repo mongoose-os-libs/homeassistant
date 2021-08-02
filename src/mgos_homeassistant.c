@@ -21,6 +21,7 @@
 #include "mgos_homeassistant_barometer.h"
 #include "mgos_homeassistant_gpio.h"
 #include "mgos_homeassistant_si7021.h"
+#include "mgos_homeassistant_bh1750.h"
 #include "mgos_mqtt.h"
 
 static struct mgos_homeassistant *s_homeassistant = NULL;
@@ -122,6 +123,19 @@ bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json
     }
 #else
     LOG(LL_ERROR, ("provider.si7021 config found: Add si7021-i2c to mos.yml, "
+                   "skipping .. "));
+#endif
+  }
+
+  while ((h = json_next_elem(json, strlen(json), h, ".provider.bh1750", &idx, &val)) != NULL) {
+#ifdef MGOS_HAVE_BH1750
+    if (!mgos_homeassistant_bh1750_fromjson(ha, val)) {
+      LOG(LL_WARN, ("Failed to add object from provider bh1750, index %d, json "
+                    "follows:%.*s",
+                    idx, (int) val.len, val.ptr));
+    }
+#else
+    LOG(LL_ERROR, ("provider.bh1750 config found: Add bh1750-i2c to mos.yml, "
                    "skipping .. "));
 #endif
   }
