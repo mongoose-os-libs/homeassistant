@@ -600,7 +600,8 @@ bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) 
   if (!o || !o->ha) goto exit;
   if (o->config_sent) goto exit;
 
-  if (o->status_cb || mgos_homeassistant_object_get_cmd(o, NULL) || mgos_homeassistant_object_get_attr(o, NULL)) {
+  if (o->status_cb || mgos_homeassistant_object_get_cmd(o, NULL) || mgos_homeassistant_object_get_attr(o, NULL) ||
+      o->json_config_additional_payload) {
     done++;
     if (mgos_homeassistant_object_send_config_mqtt(o->ha, o, NULL)) success++;
   }
