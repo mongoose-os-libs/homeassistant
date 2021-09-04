@@ -62,7 +62,7 @@ static void barometer_pre_remove_cb(struct mgos_homeassistant_object *o) {
   if (!(d = (struct mgos_homeassistant_barometer *) o->user_data)) return;
   mgos_clear_timer(d->timer);
   if (d->dev) mgos_barometer_destroy(&d->dev);
-  if (d) free(d);
+  free(d);
   o->user_data = NULL;
 }
 
@@ -146,6 +146,7 @@ bool mgos_homeassistant_barometer_fromjson(struct mgos_homeassistant *ha, struct
 exit:
   if (name) free(name);
   if (type) free(type);
+  if (!ret && !o && d) free(d);
   if (!ret && o) mgos_homeassistant_object_remove(&o);
   return ret;
 }
