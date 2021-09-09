@@ -24,45 +24,34 @@
 extern const char *mg_build_id;
 extern const char *mg_build_version;
 
+struct ha_component_data {
+  const char *name;
+  bool no_cmd_t : 1;
+  bool no_dev_cla : 1;
+  bool no_stat_t : 1;
+  bool no_val_tpl : 1;
+} ha_components[] = {{name : "none"},
+                     {name : "alarm_control_panel", no_dev_cla : true},
+                     {name : "binary_sensor", no_cmd_t : true},
+                     {name : "camera", no_cmd_t : true, no_dev_cla : true, no_stat_t : true, no_val_tpl : true},
+                     {name : "climate", no_cmd_t : true, no_dev_cla : true, no_stat_t : true},
+                     {name : "cover"},
+                     {name : "fan", no_dev_cla : true, no_val_tpl : true},
+                     {name : "light", no_dev_cla : true, no_val_tpl : true},
+                     {name : "lock", no_dev_cla : true},
+                     {name : "sensor", no_cmd_t : true},
+                     {name : "switch", no_dev_cla : true},
+                     {name : "vacuum", no_dev_cla : true, no_val_tpl : true}};
+
+#define HA_COMPONENT_MAX (sizeof(ha_components) / sizeof(ha_components[0]) - 1)
+
+static struct ha_component_data *ha_component_data(enum mgos_homeassistant_component ha_component) {
+  if (ha_component < COMPONENT_NONE || ha_component > HA_COMPONENT_MAX) ha_component = COMPONENT_NONE;
+  return ha_components + ha_component;
+}
+
 static const char *ha_component_str(enum mgos_homeassistant_component ha_component) {
-  switch (ha_component) {
-    case COMPONENT_ALARM_CONTROL_PANEL:
-      return "alarm_control_panel";
-      break;
-    case COMPONENT_BINARY_SENSOR:
-      return "binary_sensor";
-      break;
-    case COMPONENT_CAMERA:
-      return "camera";
-      break;
-    case COMPONENT_CLIMATE:
-      return "climate";
-      break;
-    case COMPONENT_COVER:
-      return "cover";
-      break;
-    case COMPONENT_FAN:
-      return "fan";
-      break;
-    case COMPONENT_LIGHT:
-      return "light";
-      break;
-    case COMPONENT_LOCK:
-      return "lock";
-      break;
-    case COMPONENT_SENSOR:
-      return "sensor";
-      break;
-    case COMPONENT_SWITCH:
-      return "switch";
-      break;
-    case COMPONENT_VACUUM:
-      return "vacuum";
-      break;
-    default:
-      break;
-  }
-  return "none";
+  return ha_component_data(ha_component)->name;
 }
 
 // Makes the mbuf NULL terminated, increasing its size if need be.
@@ -546,19 +535,18 @@ bool mgos_homeassistant_object_log(struct mgos_homeassistant_object *o, const ch
 
 static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant *ha, struct mgos_homeassistant_object *o,
                                                        struct mgos_homeassistant_object_class *c) {
+  if (!ha || !o) return false;
+  struct ha_component_data *hcd = ha_component_data(o->component);
   struct mbuf mbuf_topic;
   struct mbuf mbuf_topicprefix;
   struct mbuf mbuf_friendlyname;
   struct mbuf mbuf_payload;
   struct json_out payload = JSON_OUT_MBUF(&mbuf_payload);
-  bool ret = false;
 
   mbuf_init(&mbuf_topic, 100);
   mbuf_init(&mbuf_topicprefix, 100);
   mbuf_init(&mbuf_friendlyname, 50);
   mbuf_init(&mbuf_payload, 200);
-
-  if (!ha || !o) goto exit;
 
   gen_configtopic(&mbuf_topic, o, c);
   gen_topicprefix(&mbuf_topicprefix, o);
@@ -566,24 +554,24 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
 
   json_printf(&payload, "{\"~\":%.*Q,name:%.*Q", (int) mbuf_topicprefix.len, mbuf_topicprefix.buf, (int) mbuf_friendlyname.len,
               mbuf_friendlyname.buf);
-  json_printf(&payload, ",unique_id:\"%s:%.*s\"", mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len, mbuf_friendlyname.buf);
+  json_printf(&payload, ",uniq_id:\"%s:%.*s\"", mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len, mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s\"", mgos_sys_config_get_device_id());
-  json_printf(&payload, ",stat_t:%Q", "~");
-  if (mgos_homeassistant_object_get_cmd(o, NULL)) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
-  if (mgos_homeassistant_object_get_attr(o, NULL)) json_printf(&payload, ",attr_t:%Q", "~/attr");
-  if (c) {
-    json_printf(&payload, ",device_class:%Q,value_template:\"{{%s%s}}\"", c->class_name, "value_json.", c->class_name);
-    if (c->json_config_additional_payload) json_printf(&payload, ",%s", c->json_config_additional_payload);
-  }
+
+  if (!hcd->no_stat_t) json_printf(&payload, ",stat_t:%Q", "~");
+  if (mgos_homeassistant_object_get_cmd(o, NULL) && !hcd->no_cmd_t) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
+  if (mgos_homeassistant_object_get_attr(o, NULL)) json_printf(&payload, ",json_attr_t:%Q", "~/attr");
+  if (c && !hcd->no_dev_cla) json_printf(&payload, ",dev_cla:%Q", c->class_name);
+  if (c && !hcd->no_val_tpl) json_printf(&payload, ",val_tpl:\"{{%s%s}}\"", "value_json.", c->class_name);
+  if (c && c->json_config_additional_payload) json_printf(&payload, ",%s", c->json_config_additional_payload);
   if (o->json_config_additional_payload) json_printf(&payload, ",%s", o->json_config_additional_payload);
 
-  json_printf(&payload, ",device:{");
+  json_printf(&payload, ",dev:{");
   json_printf(&payload, "name:%Q", mgos_sys_config_get_device_id());
-  json_printf(&payload, ",identifiers:[%Q]", o->ha->node_name);
-  json_printf(&payload, ",connections:[[mac,%Q]]", mgos_sys_ro_vars_get_mac_address());
-  json_printf(&payload, ",model:%Q", mgos_sys_ro_vars_get_app());
-  json_printf(&payload, ",sw_version:\"%s (%s)\"", mgos_sys_ro_vars_get_fw_version(), mgos_sys_ro_vars_get_fw_id());
-  json_printf(&payload, ",manufacturer:%Q", "Mongoose OS");
+  json_printf(&payload, ",ids:[%Q]", o->ha->node_name);
+  json_printf(&payload, ",cns:[[mac,%Q]]", mgos_sys_ro_vars_get_mac_address());
+  json_printf(&payload, ",mdl:%Q", mgos_sys_ro_vars_get_app());
+  json_printf(&payload, ",sw:\"%s (%s)\"", mgos_sys_ro_vars_get_fw_version(), mgos_sys_ro_vars_get_fw_id());
+  json_printf(&payload, ",mf:%Q", "Mongoose OS");
   json_printf(&payload, "}");
 
   json_printf(&payload, "}");
@@ -597,13 +585,11 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
     mgos_mqtt_pub((char *) mbuf_topic.buf, mbuf_payload.buf, mbuf_payload.len, 0, true);
   }
 
-  ret = true;
-exit:
   mbuf_free(&mbuf_topic);
   mbuf_free(&mbuf_topicprefix);
   mbuf_free(&mbuf_friendlyname);
   mbuf_free(&mbuf_payload);
-  return ret;
+  return true;
 }
 
 bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) {
@@ -614,7 +600,8 @@ bool mgos_homeassistant_object_send_config(struct mgos_homeassistant_object *o) 
   if (!o || !o->ha) goto exit;
   if (o->config_sent) goto exit;
 
-  if (o->status_cb || mgos_homeassistant_object_get_cmd(o, NULL) || mgos_homeassistant_object_get_attr(o, NULL)) {
+  if (o->status_cb || mgos_homeassistant_object_get_cmd(o, NULL) || mgos_homeassistant_object_get_attr(o, NULL) ||
+      o->json_config_additional_payload) {
     done++;
     if (mgos_homeassistant_object_send_config_mqtt(o->ha, o, NULL)) success++;
   }
