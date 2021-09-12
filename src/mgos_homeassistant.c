@@ -19,12 +19,30 @@
 #include "mgos.h"
 #include "mgos_homeassistant_automation.h"
 #include "mgos_homeassistant_barometer.h"
+#include "mgos_homeassistant_bh1750.h"
 #include "mgos_homeassistant_gpio.h"
 #include "mgos_homeassistant_si7021.h"
-#include "mgos_homeassistant_bh1750.h"
 #include "mgos_mqtt.h"
 
+struct provider {
+  ha_provider_cfg_handler cfg_handler;
+  const char *module;
+  const char *provider;
+  SLIST_ENTRY(provider) entry;
+};
+static SLIST_HEAD(, provider) providers;
+
 static struct mgos_homeassistant *s_homeassistant = NULL;
+
+static struct provider *mgos_homeassistant_get_provider(const char *provider, size_t len) {
+  struct provider *p;
+  if (!len) {
+    SLIST_FOREACH(p, &providers, entry) if (!strcmp(p->provider, provider)) return p;
+  } else {
+    SLIST_FOREACH(p, &providers, entry) if (!strncmp(p->provider, provider, len) && !p->provider[len]) return p;
+  }
+  return NULL;
+}
 
 static void mgos_homeassistant_mqtt_connect(struct mg_connection *nc, const char *client_id, struct mg_send_mqtt_handshake_opts *opts, void *fn_arg) {
   LOG(LL_DEBUG, ("Setting will topic='%s' payload='offline', for when we disconnect", mgos_sys_config_get_device_id()));
@@ -89,72 +107,44 @@ exit:
   return ret;
 }
 
-bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json) {
+static void mgos_homeassistant_fromjson_arr(struct mgos_homeassistant *ha, struct provider *p, struct json_token *arr) {
+  struct json_token *h = NULL;
+  int idx;
   struct json_token val;
+  while ((h = json_next_elem(arr->ptr, arr->len, h, "", &idx, &val)) != NULL) {
+    if (p->cfg_handler(ha, val)) continue;
+    LOG(LL_WARN, ("Failed to add object (provider %s, index %d), JSON: %.*s", p->provider, idx, val.len, val.ptr));
+  }
+}
+
+bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json) {
+  struct json_token key, val;
   void *h = NULL;
   int idx;
 
   char *name = NULL;
 
   if (!ha || !json) return false;
+  size_t json_sz = strlen(json);
 
   // Set global config elements
-  json_scanf(json, strlen(json), "{name:%Q}", &name);
+  json_scanf(json, json_sz, "{name:%Q}", &name);
   if (name) {
     if (ha->node_name) free(ha->node_name);
     ha->node_name = strdup(name);
   }
 
   // Read providers
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.gpio", &idx, &val)) != NULL) {
-    if (!mgos_homeassistant_gpio_fromjson(ha, val)) {
-      LOG(LL_WARN, ("Failed to add object from provider gpio, index %d, json "
-                    "follows:%.*s",
-                    idx, (int) val.len, val.ptr));
-    }
-  }
-
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.si7021", &idx, &val)) != NULL) {
-#ifdef MGOS_HAVE_SI7021_I2C
-    if (!mgos_homeassistant_si7021_fromjson(ha, val)) {
-      LOG(LL_WARN, ("Failed to add object from provider si7021, index %d, json "
-                    "follows:%.*s",
-                    idx, (int) val.len, val.ptr));
-    }
-#else
-    LOG(LL_ERROR, ("provider.si7021 config found: Add si7021-i2c to mos.yml, "
-                   "skipping .. "));
-#endif
-  }
-
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.bh1750", &idx, &val)) != NULL) {
-#ifdef MGOS_HAVE_BH1750
-    if (!mgos_homeassistant_bh1750_fromjson(ha, val)) {
-      LOG(LL_WARN, ("Failed to add object from provider bh1750, index %d, json "
-                    "follows:%.*s",
-                    idx, (int) val.len, val.ptr));
-    }
-#else
-    LOG(LL_ERROR, ("provider.bh1750 config found: Add bh1750-i2c to mos.yml, "
-                   "skipping .. "));
-#endif
-  }
-
-  while ((h = json_next_elem(json, strlen(json), h, ".provider.barometer", &idx, &val)) != NULL) {
-#ifdef MGOS_HAVE_BAROMETER
-    if (!mgos_homeassistant_barometer_fromjson(ha, val)) {
-      LOG(LL_WARN, ("Failed to add object from provider barometer, index %d, json "
-                    "follows:%.*s",
-                    idx, (int) val.len, val.ptr));
-    }
-#else
-    LOG(LL_ERROR, ("provider.barometer config found: Add barometer to mos.yml, "
-                   "skipping .. "));
-#endif
+  while ((h = json_next_key(json, json_sz, h, ".provider", &key, &val)) != NULL) {
+    struct provider *p = mgos_homeassistant_get_provider(key.ptr, key.len);
+    if (p && p->cfg_handler)
+      mgos_homeassistant_fromjson_arr(ha, p, &val);
+    else
+      LOG(LL_ERROR, ("provider.%.*s config found: add %s to mos.yml, skipping...", key.len, key.ptr, p ? p->module : "the module implementing it"));
   }
 
   // Read automations
-  while ((h = json_next_elem(json, strlen(json), h, ".automation", &idx, &val)) != NULL) {
+  while ((h = json_next_elem(json, json_sz, h, ".automation", &idx, &val)) != NULL) {
     struct mgos_homeassistant_automation *a;
 
     if (!(a = mgos_homeassistant_automation_create(val))) {
@@ -173,7 +163,44 @@ struct mgos_homeassistant *mgos_homeassistant_get_global() {
   return s_homeassistant;
 }
 
+bool mgos_homeassistant_register_provider(const char *provider, ha_provider_cfg_handler cfg_handler, const char *module) {
+  struct provider *p;
+  if (!provider || !(!cfg_handler ^ !module)) return false;
+  if (mgos_homeassistant_get_provider(provider, 0)) return false;
+  if (!(p = malloc(sizeof(*p)))) return false;
+
+  p->cfg_handler = cfg_handler;
+  p->module = module;
+  p->provider = provider;
+  SLIST_INSERT_HEAD(&providers, p, entry);
+  return true;
+}
+
 bool mgos_homeassistant_init(void) {
+  SLIST_INIT(&providers);
+  mgos_homeassistant_register_provider("barometer",
+#ifdef MGOS_HAVE_BAROMETER
+                                       mgos_homeassistant_barometer_fromjson, NULL
+#else
+                                       NULL, "barometer"
+#endif
+  );
+  mgos_homeassistant_register_provider("bh1750",
+#ifdef MGOS_HAVE_BH1750
+                                       mgos_homeassistant_bh1750_fromjson, NULL
+#else
+                                       NULL, "bh1750-i2c"
+#endif
+  );
+  mgos_homeassistant_register_provider("gpio", mgos_homeassistant_gpio_fromjson, NULL);
+  mgos_homeassistant_register_provider("si7021",
+#ifdef MGOS_HAVE_SI7021_I2C
+                                       mgos_homeassistant_si7021_fromjson, NULL
+#else
+                                       NULL, "si7021-i2c"
+#endif
+  );
+
   s_homeassistant = calloc(1, sizeof(struct mgos_homeassistant));
   if (!s_homeassistant) return false;
 

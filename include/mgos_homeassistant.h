@@ -22,10 +22,13 @@
 extern "C" {
 #endif
 
+typedef bool (*ha_provider_cfg_handler)(struct mgos_homeassistant *ha, struct json_token val);
+
 struct mgos_homeassistant *mgos_homeassistant_get_global(void);
 bool mgos_homeassistant_fromfile(struct mgos_homeassistant *ha, const char *filename);
 bool mgos_homeassistant_fromjson(struct mgos_homeassistant *ha, const char *json);
 bool mgos_homeassistant_clear(struct mgos_homeassistant *ha);
+bool mgos_homeassistant_register_provider(const char *provider, ha_provider_cfg_handler cfg_handler, const char *mos_mod);
 
 #ifdef __cplusplus
 }
