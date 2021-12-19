@@ -156,9 +156,10 @@ static char *gen_topicprefix(struct mbuf *m, const struct mgos_homeassistant_obj
 
 // Note: gen_configtopic is not NULL terminated.
 static char *gen_configtopic(struct mbuf *m, const struct mgos_homeassistant_object *o, const struct mgos_homeassistant_object_class *c) {
+  enum mgos_homeassistant_component component = c ? c->component : o->component;
   mbuf_append(m, mgos_sys_config_get_homeassistant_discovery_prefix(), strlen(mgos_sys_config_get_homeassistant_discovery_prefix()));
   mbuf_append(m, "/", 1);
-  mbuf_append(m, ha_component_str(o->component), strlen(ha_component_str(o->component)));
+  mbuf_append(m, ha_component_str(component), strlen(ha_component_str(component)));
   mbuf_append(m, "/", 1);
   mbuf_append(m, o->ha->node_name, strlen(o->ha->node_name));
   mbuf_append(m, "/", 1);
@@ -536,7 +537,7 @@ bool mgos_homeassistant_object_log(struct mgos_homeassistant_object *o, const ch
 static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant *ha, struct mgos_homeassistant_object *o,
                                                        struct mgos_homeassistant_object_class *c) {
   if (!ha || !o) return false;
-  struct ha_component_data *hcd = ha_component_data(o->component);
+  struct ha_component_data *hcd = ha_component_data(c ? c->component : o->component);
   struct mbuf mbuf_topic;
   struct mbuf mbuf_topicprefix;
   struct mbuf mbuf_friendlyname;
@@ -686,6 +687,7 @@ struct mgos_homeassistant_object_class *mgos_homeassistant_object_class_add(stru
   }
 
   c->object = o;
+  c->component = o->component;
   c->class_name = strdup(class_name);
   if (json_config_additional_payload) c->json_config_additional_payload = strdup(json_config_additional_payload);
   c->status_cb = status_cb;

@@ -106,6 +106,7 @@ struct mgos_homeassistant_object {
 
 struct mgos_homeassistant_object_class {
   struct mgos_homeassistant_object *object;
+  enum mgos_homeassistant_component component;
   char *class_name;
   char *json_config_additional_payload;
 
