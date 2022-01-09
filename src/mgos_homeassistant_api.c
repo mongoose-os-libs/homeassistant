@@ -40,7 +40,7 @@ struct ha_component_data {
                      {name : "light", no_dev_cla : true, no_val_tpl : true},
                      {name : "lock", no_dev_cla : true},
                      {name : "sensor", no_cmd_t : true},
-                     {name : "switch", no_dev_cla : true},
+                     {name : "switch"},
                      {name : "vacuum", no_dev_cla : true, no_val_tpl : true}};
 
 #define HA_COMPONENT_MAX (sizeof(ha_components) / sizeof(ha_components[0]) - 1)
