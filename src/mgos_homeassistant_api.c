@@ -26,6 +26,7 @@ extern const char *mg_build_version;
 
 struct ha_component_data {
   const char *name;
+  const char *json_config_additional_payload;
   bool no_cmd_t : 1;
   bool no_dev_cla : 1;
   bool no_stat_t : 1;
@@ -36,6 +37,13 @@ struct ha_component_data {
                      {name : "camera", no_cmd_t : true, no_dev_cla : true, no_stat_t : true, no_val_tpl : true},
                      {name : "climate", no_cmd_t : true, no_dev_cla : true, no_stat_t : true},
                      {name : "cover"},
+                     {
+                       name : "device_automation",
+                       json_config_additional_payload : "\"atype\":\"trigger\",\"t\":\"~\"",
+                       no_cmd_t : true,
+                       no_dev_cla : true,
+                       no_stat_t : true
+                     },
                      {name : "fan", no_dev_cla : true, no_val_tpl : true},
                      {name : "light", no_dev_cla : true, no_val_tpl : true},
                      {name : "lock", no_dev_cla : true},
@@ -558,6 +566,7 @@ static bool mgos_homeassistant_object_send_config_mqtt(struct mgos_homeassistant
   json_printf(&payload, ",uniq_id:\"%s:%.*s\"", mgos_sys_ro_vars_get_mac_address(), (int) mbuf_friendlyname.len, mbuf_friendlyname.buf);
   json_printf(&payload, ",avty_t:\"%s\"", mgos_sys_config_get_device_id());
 
+  if (hcd->json_config_additional_payload) json_printf(&payload, ",%s", hcd->json_config_additional_payload);
   if (!hcd->no_stat_t) json_printf(&payload, ",stat_t:%Q", "~");
   if (mgos_homeassistant_object_get_cmd(o, NULL) && !hcd->no_cmd_t) json_printf(&payload, ",cmd_t:%Q", "~/cmd");
   if (mgos_homeassistant_object_get_attr(o, NULL)) json_printf(&payload, ",json_attr_t:%Q", "~/attr");
